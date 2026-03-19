@@ -70,8 +70,9 @@ async def list_transactions(
     if user_id:
         result_user = await db.execute(select(User).where(User.telegram_id == user_id))
         u = result_user.scalar_one_or_none()
-        if u:
-            q = q.where(Transaction.user_id == u.id)
+        if not u:
+            return []  # unknown user → no transactions (don't silently drop filter)
+        q = q.where(Transaction.user_id == u.id)
 
     result = await db.execute(q.order_by(Transaction.created_at.desc()))
     return result.scalars().all()
@@ -108,7 +109,7 @@ async def delete_transaction(
 ):
     result = await db.execute(select(Transaction).where(Transaction.id == tx_id))
     tx = result.scalar_one_or_none()
-    if not tx:
+    if not tx or tx.is_deleted:
         raise HTTPException(404, "Transaction not found")
     tx.is_deleted = True
     await db.commit()

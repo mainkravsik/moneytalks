@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from fastapi import APIRouter, Depends
@@ -10,8 +11,9 @@ from app.db.base import get_db
 from app.db.models import BudgetLimit, Category, Transaction, Loan, LoanPayment
 from app.services.period_db import get_or_create_period
 from app.services.budget import calculate_safe_to_spend
-from app.services.cache import get_cached_safe_to_spend, set_cached_safe_to_spend
+from app.services.cache import get_cached_safe_to_spend, set_cached_safe_to_spend, invalidate_safe_to_spend
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/budget", tags=["budget"])
 
 
@@ -47,10 +49,13 @@ async def get_budget_current(
     )
     spent_map = {row.category_id: Decimal(str(row.total)) for row in spent_q}
 
-    # Unpaid loan payments this period
+    # Unpaid loan payments — scoped to this period (both start and end bounds)
     paid_loan_ids_q = await db.execute(
         select(LoanPayment.loan_id)
-        .where(LoanPayment.paid_at >= period_start)
+        .where(
+            LoanPayment.paid_at >= period_start,
+            LoanPayment.paid_at < period_end,
+        )
         .distinct()
     )
     paid_loan_ids = {row[0] for row in paid_loan_ids_q}
@@ -89,9 +94,9 @@ async def get_budget_current(
     cached = await get_cached_safe_to_spend()
     if cached is None:
         safe = calculate_safe_to_spend(total_limit, total_spent, unpaid_loans)
-        await set_cached_safe_to_spend(float(safe))
+        await set_cached_safe_to_spend(safe)
     else:
-        safe = Decimal(str(cached))
+        safe = cached
 
     return BudgetCurrentResponse(
         period_year=period.year,
@@ -112,21 +117,28 @@ async def update_limits(
     _user: dict = Depends(get_tg_user),
 ):
     period = await get_or_create_period(db)
-    for item in body:
-        result = await db.execute(
-            select(BudgetLimit).where(
-                BudgetLimit.period_id == period.id,
-                BudgetLimit.category_id == item.category_id,
-            )
+
+    # Fetch all existing limits for this period in one query (avoid N+1)
+    category_ids = [item.category_id for item in body]
+    existing_q = await db.execute(
+        select(BudgetLimit).where(
+            BudgetLimit.period_id == period.id,
+            BudgetLimit.category_id.in_(category_ids),
         )
-        limit_row = result.scalar_one_or_none()
-        if limit_row:
-            limit_row.limit_amount = item.limit_amount
+    )
+    existing_map = {row.category_id: row for row in existing_q.scalars()}
+
+    for item in body:
+        if item.category_id in existing_map:
+            existing_map[item.category_id].limit_amount = item.limit_amount
         else:
             db.add(BudgetLimit(
                 period_id=period.id,
                 category_id=item.category_id,
                 limit_amount=item.limit_amount,
             ))
+
     await db.commit()
+    # Invalidate cache — changing limits changes safe_to_spend
+    await invalidate_safe_to_spend()
     return {"updated": len(body)}
