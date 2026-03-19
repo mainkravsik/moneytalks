@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.auth import get_tg_user
+from app.api.deps import get_or_create_user
 from app.api.schemas.transaction import TransactionCreate, TransactionUpdate, TransactionOut
 from app.db.base import get_db
 from app.db.models import Transaction, User
@@ -13,24 +14,13 @@ from app.services.cache import invalidate_safe_to_spend
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
 
-async def _get_or_create_user(tg_user: dict, db: AsyncSession) -> User:
-    result = await db.execute(select(User).where(User.telegram_id == tg_user["id"]))
-    user = result.scalar_one_or_none()
-    if not user:
-        user = User(telegram_id=tg_user["id"], name=tg_user.get("first_name", "User"))
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
-    return user
-
-
 @router.post("", response_model=TransactionOut, status_code=201)
 async def add_transaction(
     body: TransactionCreate,
     db: AsyncSession = Depends(get_db),
     tg_user: dict = Depends(get_tg_user),
 ):
-    user = await _get_or_create_user(tg_user, db)
+    user = await get_or_create_user(tg_user, db)
     await get_or_create_period(db)  # ensure period exists
     tx = Transaction(
         user_id=user.id,
