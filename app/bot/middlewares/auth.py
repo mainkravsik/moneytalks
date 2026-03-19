@@ -13,17 +13,18 @@ class WhitelistMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict,
     ) -> Any:
-        user = None
-        if isinstance(event, Message):
-            user = event.from_user
-        elif isinstance(event, CallbackQuery):
+        # Extract from_user from any event type (None for channel posts, etc.)
+        if isinstance(event, (Message, CallbackQuery)):
             user = event.from_user
         else:
             user = getattr(event, "from_user", None)
 
-        if user is not None and user.id not in self.allowed_ids:
+        # Block if from_user is missing or not in whitelist
+        if user is None or user.id not in self.allowed_ids:
             if isinstance(event, Message):
                 await event.answer("⛔ Нет доступа.")
+            elif isinstance(event, CallbackQuery):
+                await event.answer("⛔ Нет доступа.", show_alert=True)
             return None
 
         return await handler(event, data)

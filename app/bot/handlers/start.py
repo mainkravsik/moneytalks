@@ -7,7 +7,8 @@ router = Router()
 
 @router.message(CommandStart())
 async def cmd_start(message: Message):
-    name = message.from_user.first_name
+    # from_user is guaranteed non-None here: WhitelistMiddleware blocks if None
+    name = message.from_user.first_name  # type: ignore[union-attr]
     await message.answer(
         f"👋 Привет, {name}!\n\n"
         "Я веду семейный бюджет для Ильи и Алёны.\n\n"
