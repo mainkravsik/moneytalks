@@ -8,6 +8,7 @@ os.environ.setdefault("WEBHOOK_URL", "https://example.com/webhook")
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost/test")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/1")
 os.environ.setdefault("SECRET_KEY", "test-secret-key-32-chars-minimum!")
+os.environ.setdefault("WEBHOOK_SECRET", "test-webhook-secret-16c")
 
 from app.config import get_settings
 get_settings.cache_clear()

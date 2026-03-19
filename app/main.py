@@ -9,7 +9,7 @@ from fastapi.responses import Response
 
 from aiogram.types import Update
 
-from app.api.app import app as fastapi_app
+from app.api.app import create_app
 from app.bot.bot import create_bot, create_dispatcher
 from app.config import get_settings
 
@@ -17,25 +17,38 @@ settings = get_settings()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+TELEGRAM_SECRET_HEADER = "X-Telegram-Bot-Api-Secret-Token"
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     bot = create_bot()
     dp = create_dispatcher()
 
-    await bot.set_webhook(settings.webhook_url)
-    logger.info(f"Webhook set to {settings.webhook_url}")
+    try:
+        await bot.set_webhook(settings.webhook_url, secret_token=settings.webhook_secret)
+        logger.info(f"Webhook set to {settings.webhook_url}")
+    except Exception:
+        logger.exception("Failed to set webhook — check BOT_TOKEN and WEBHOOK_URL")
+        raise
 
     app.state.bot = bot
     app.state.dp = dp
 
     yield
 
-    await bot.delete_webhook()
-    await bot.session.close()
+    try:
+        await bot.delete_webhook()
+    finally:
+        await bot.session.close()
 
 
 async def webhook_handler(request: Request) -> Response:
+    # Validate Telegram secret token before processing
+    token = request.headers.get(TELEGRAM_SECRET_HEADER)
+    if token != settings.webhook_secret:
+        return Response(status_code=403)
+
     body = await request.body()
     update = Update.model_validate(json.loads(body))
     bot = request.app.state.bot
@@ -44,19 +57,19 @@ async def webhook_handler(request: Request) -> Response:
     return Response()
 
 
-# Attach lifespan to the existing FastAPI instance
-fastapi_app.router.lifespan_context = lifespan
+# Build the production app with lifespan
+fastapi_app = create_app(lifespan=lifespan)
 
 # Add webhook route
 fastapi_app.add_api_route("/webhook", webhook_handler, methods=["POST"])
 
-# CORS middleware (Mini App needs this)
+# CORS middleware — restrict to Telegram Mini App origins
 fastapi_app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
+    allow_origins=settings.cors_origins,
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["*"],
 )
 
 if __name__ == "__main__":
-    uvicorn.run("main:fastapi_app", host="0.0.0.0", port=8000, reload=settings.debug)
+    uvicorn.run(fastapi_app, host="0.0.0.0", port=8000, reload=settings.debug)

@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     ilya_tg_id: int
     alena_tg_id: int
     webhook_url: str
+    webhook_secret: str = Field(min_length=16)
 
     database_url: str
     redis_url: str
@@ -15,6 +16,7 @@ class Settings(BaseSettings):
     secret_key: str = Field(min_length=32)
     debug: bool = False
     debug_trigger_scheduler: str = ""
+    cors_origins: list[str] = ["https://web.telegram.org"]
 
     @property
     def allowed_user_ids(self) -> set[int]:
