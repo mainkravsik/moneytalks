@@ -16,7 +16,9 @@ def make_init_data(user_id: int, bot_token: str, age_seconds: int = 0) -> str:
     """Generate a valid Telegram initData string."""
     auth_date = int(time.time()) - age_seconds
     user_json = json.dumps({"id": user_id, "first_name": "Test"})
-    data_check = f"auth_date={auth_date}\nuser={user_json}"
+    # Use sorted() to match production validate_init_data logic exactly
+    params = {"auth_date": str(auth_date), "user": user_json}
+    data_check = "\n".join(f"{k}={v}" for k, v in sorted(params.items()))
     secret = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
     hash_ = hmac.new(secret, data_check.encode(), hashlib.sha256).hexdigest()
     return urllib.parse.urlencode({
@@ -54,4 +56,13 @@ async def test_expired_init_data_rejected():
 async def test_missing_header_rejected():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.get("/api/health")
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_tampered_signature_rejected():
+    """Valid structure and allowed user, but signed with wrong token."""
+    init_data = make_init_data(settings.ilya_tg_id, "wrong_token:XYZ")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.get("/api/health", headers={"X-Telegram-Init-Data": init_data})
     assert resp.status_code == 401

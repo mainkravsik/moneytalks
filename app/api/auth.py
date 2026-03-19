@@ -19,7 +19,9 @@ def validate_init_data(init_data: str) -> dict:
     if not received_hash:
         raise HTTPException(status_code=401, detail="Missing hash")
 
-    auth_date = int(params.get("auth_date", 0))
+    if "auth_date" not in params:
+        raise HTTPException(status_code=401, detail="Missing auth_date")
+    auth_date = int(params["auth_date"])
     if time.time() - auth_date > MAX_AGE_SECONDS:
         raise HTTPException(status_code=401, detail="initData expired")
 
@@ -31,7 +33,9 @@ def validate_init_data(init_data: str) -> dict:
         raise HTTPException(status_code=401, detail="Invalid signature")
 
     user = json.loads(params.get("user", "{}"))
-    if user.get("id") not in settings.allowed_user_ids:
+    if not user.get("id"):
+        raise HTTPException(status_code=401, detail="Missing user field")
+    if user["id"] not in settings.allowed_user_ids:
         raise HTTPException(status_code=403, detail="User not allowed")
 
     return user
