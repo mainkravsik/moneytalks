@@ -1,1 +1,10 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+dist/
+.superpowers/
+*.egg-info/
+.pytest_cache/
 .worktrees/
