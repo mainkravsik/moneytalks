@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 from functools import lru_cache
 
 
@@ -11,7 +12,7 @@ class Settings(BaseSettings):
     database_url: str
     redis_url: str
 
-    secret_key: str
+    secret_key: str = Field(min_length=32)
     debug: bool = False
     debug_trigger_scheduler: str = ""
 
