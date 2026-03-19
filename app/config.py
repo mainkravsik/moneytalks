@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
 
@@ -19,8 +19,7 @@ class Settings(BaseSettings):
     def allowed_user_ids(self) -> set[int]:
         return {self.ilya_tg_id, self.alena_tg_id}
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(env_file=".env")
 
 
 @lru_cache
