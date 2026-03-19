@@ -8,6 +8,7 @@ from app.api.schemas.transaction import TransactionCreate, TransactionUpdate, Tr
 from app.db.base import get_db
 from app.db.models import Transaction, User
 from app.services.period_db import get_or_create_period, get_current_period
+from app.services.cache import invalidate_safe_to_spend
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -40,7 +41,7 @@ async def add_transaction(
     db.add(tx)
     await db.commit()
     await db.refresh(tx)
-    # TODO: invalidate Redis cache here (Task 4)
+    await invalidate_safe_to_spend()
     return tx
 
 
@@ -95,6 +96,7 @@ async def update_transaction(
         tx.category_id = body.category_id
     await db.commit()
     await db.refresh(tx)
+    await invalidate_safe_to_spend()
     return tx
 
 
@@ -110,3 +112,4 @@ async def delete_transaction(
         raise HTTPException(404, "Transaction not found")
     tx.is_deleted = True
     await db.commit()
+    await invalidate_safe_to_spend()
