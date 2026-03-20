@@ -4,6 +4,7 @@ from app.api.routers.categories import router as categories_router
 from app.api.routers.transactions import router as transactions_router
 from app.api.routers.budget import router as budget_router
 from app.api.routers.piggy import router as piggy_router
+from app.api.routers.loans import router as loans_router
 
 
 def create_app(lifespan=None) -> FastAPI:
@@ -14,6 +15,7 @@ def create_app(lifespan=None) -> FastAPI:
     application.include_router(transactions_router, prefix="/api")
     application.include_router(budget_router, prefix="/api")
     application.include_router(piggy_router, prefix="/api")
+    application.include_router(loans_router, prefix="/api")
     return application
 
 
