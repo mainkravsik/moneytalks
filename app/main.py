@@ -35,7 +35,14 @@ async def lifespan(app: FastAPI):
     app.state.bot = bot
     app.state.dp = dp
 
+    from app.bot.scheduler import create_scheduler
+    scheduler = create_scheduler(bot)
+    scheduler.start()
+    app.state.scheduler = scheduler
+
     yield
+
+    scheduler.shutdown(wait=False)
 
     try:
         await bot.delete_webhook()
