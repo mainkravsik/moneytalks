@@ -31,3 +31,9 @@ export const addTransaction = (data: {
 export const updateLimits = (
   updates: { category_id: number; limit_amount: number }[]
 ): Promise<void> => api.patch('/budget/limits', updates)
+
+export const createCategory = (data: { name: string; emoji: string }): Promise<void> =>
+  api.post('/categories', data)
+
+export const deleteCategory = (id: number): Promise<void> =>
+  api.delete(`/categories/${id}`)

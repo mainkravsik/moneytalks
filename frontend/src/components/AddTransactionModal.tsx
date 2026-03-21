@@ -5,10 +5,11 @@ interface Props {
   categories: CategoryBudget[]
   onClose: () => void
   onSuccess: () => void
+  initialCategoryId?: number
 }
 
-export default function AddTransactionModal({ categories, onClose, onSuccess }: Props) {
-  const [categoryId, setCategoryId] = useState<number | null>(null)
+export default function AddTransactionModal({ categories, onClose, onSuccess, initialCategoryId }: Props) {
+  const [categoryId, setCategoryId] = useState<number | null>(initialCategoryId ?? null)
   const [amount, setAmount] = useState('')
   const [comment, setComment] = useState('')
   const [loading, setLoading] = useState(false)
