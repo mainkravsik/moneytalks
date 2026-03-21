@@ -1,7 +1,6 @@
 import logging
 from datetime import datetime, timezone, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.jobstores.redis import RedisJobStore
 from sqlalchemy import select, func
 from app.config import get_settings
 from app.db.base import AsyncSessionLocal
@@ -83,10 +82,7 @@ async def job_loan_reminders(bot):
 
 
 def create_scheduler(bot) -> AsyncIOScheduler:
-    from urllib.parse import urlparse
-    parsed = urlparse(settings.redis_url)
-    jobstores = {"default": RedisJobStore(host=parsed.hostname or "redis", port=parsed.port or 6379)}
-    scheduler = AsyncIOScheduler(jobstores=jobstores)
+    scheduler = AsyncIOScheduler()
 
     # Weekly report every Monday at 10:00
     scheduler.add_job(job_weekly_report, "cron", day_of_week="mon", hour=10, minute=0, args=[bot])
