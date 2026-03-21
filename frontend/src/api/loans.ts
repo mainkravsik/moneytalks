@@ -1,10 +1,20 @@
 import { api } from './client'
 
 export interface Loan {
-  id: number; name: string; bank: string | null
-  original_amount: number; remaining_amount: number
-  interest_rate: number; monthly_payment: number
-  next_payment_date: string; start_date: string; is_active: boolean
+  id: number
+  loan_type: 'loan' | 'card'
+  name: string
+  bank: string | null
+  original_amount: number | null
+  remaining_amount: number
+  interest_rate: number
+  monthly_payment: number
+  next_payment_date: string
+  start_date: string | null
+  is_active: boolean
+  credit_limit: number | null
+  grace_days: number | null
+  min_payment: number | null
 }
 
 export interface StrategyResult {
@@ -23,3 +33,4 @@ export const fetchPayoff = (extra = 0) =>
 export const recordPayment = (id: number, amount: number) =>
   api.post<Loan>(`/loans/${id}/payment`, { amount }).then(r => r.data)
 export const createLoan = (data: Partial<Loan>) => api.post<Loan>('/loans', data).then(r => r.data)
+export const updateLoan = (id: number, data: Partial<Loan>) => api.patch<Loan>(`/loans/${id}`, data).then(r => r.data)

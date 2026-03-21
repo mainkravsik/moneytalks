@@ -81,15 +81,21 @@ class PiggyContribution(Base):
 class Loan(Base):
     __tablename__ = "loans"
     id: Mapped[int] = mapped_column(primary_key=True)
+    loan_type: Mapped[str] = mapped_column(String(20), default="loan")  # loan | card
     name: Mapped[str] = mapped_column(String(100))
     bank: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    original_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    # Loan fields
+    original_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     remaining_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     interest_rate: Mapped[Decimal] = mapped_column(Numeric(5, 2))  # % годовых
     monthly_payment: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     next_payment_date: Mapped[date] = mapped_column(Date)
+    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     payment_type: Mapped[str] = mapped_column(String(20), default="annuity")  # annuity | differentiated
-    start_date: Mapped[date] = mapped_column(Date)
+    # Card-only fields
+    credit_limit: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    grace_days: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 0 = grace period expired
+    min_payment: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
