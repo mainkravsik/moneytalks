@@ -20,7 +20,7 @@ export default function CategoryCard({ data, onClick, onLongPress }: Props) {
   const barColor = data.percent_used < 0.7 ? '#4CAF50'
     : data.percent_used < 1 ? '#FF9800'
     : '#F44336'
-  const isOver = data.spent > data.limit
+  const isOver = data.remaining < 0
 
   return (
     <div
