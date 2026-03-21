@@ -23,5 +23,8 @@ class TransactionOut(BaseModel):
     comment: str | None
     is_deleted: bool
     created_at: datetime
+    category_name: str | None = None
+    category_emoji: str | None = None
+    user_name: str | None = None
 
     model_config = {"from_attributes": True}

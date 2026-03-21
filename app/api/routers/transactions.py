@@ -106,7 +106,33 @@ async def list_transactions(
         q = q.where(Transaction.user_id == u.id)
 
     result = await db.execute(q.order_by(Transaction.created_at.desc()))
-    return result.scalars().all()
+    txs = result.scalars().all()
+
+    # Load categories and users in bulk
+    cat_ids = list({tx.category_id for tx in txs})
+    user_ids = list({tx.user_id for tx in txs})
+    cats_result = await db.execute(select(Category).where(Category.id.in_(cat_ids)))
+    users_result = await db.execute(select(User).where(User.id.in_(user_ids)))
+    cats_map = {c.id: c for c in cats_result.scalars().all()}
+    users_map = {u.id: u for u in users_result.scalars().all()}
+
+    out = []
+    for tx in txs:
+        cat = cats_map.get(tx.category_id)
+        usr = users_map.get(tx.user_id)
+        out.append(TransactionOut(
+            id=tx.id,
+            user_id=tx.user_id,
+            category_id=tx.category_id,
+            amount=tx.amount,
+            comment=tx.comment,
+            is_deleted=tx.is_deleted,
+            created_at=tx.created_at,
+            category_name=cat.name if cat else None,
+            category_emoji=cat.emoji if cat else None,
+            user_name=usr.name if usr else None,
+        ))
+    return out
 
 
 @router.patch("/{tx_id}", response_model=TransactionOut)

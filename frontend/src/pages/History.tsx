@@ -4,6 +4,7 @@ import { api } from '../api/client'
 interface Transaction {
   id: number; amount: number; comment: string | null
   category_id: number; created_at: string; is_deleted: boolean
+  category_name: string | null; category_emoji: string | null; user_name: string | null
 }
 
 export default function HistoryPage() {
@@ -23,9 +24,11 @@ export default function HistoryPage() {
         {txs.map(tx => (
           <div key={tx.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(128,128,128,0.15)' }}>
             <div>
-              <div style={{ fontWeight: 'bold' }}>₽{tx.amount.toLocaleString('ru')}</div>
+              <div style={{ fontWeight: 'bold' }}>
+                {tx.category_emoji} {tx.category_name || '—'} · ₽{tx.amount.toLocaleString('ru')}
+              </div>
               <div style={{ fontSize: 11, opacity: 0.5 }}>
-                {new Date(tx.created_at).toLocaleDateString('ru')} · {tx.comment || '—'}
+                {new Date(tx.created_at).toLocaleDateString('ru')} · {tx.user_name || '?'} · {tx.comment || '—'}
               </div>
             </div>
             <button onClick={() => handleDelete(tx.id)}
