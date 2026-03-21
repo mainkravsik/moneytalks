@@ -53,8 +53,8 @@ export default function CategoryCard({ data, onClick, onLongPress }: Props) {
       </div>
       <div style={{ fontSize: 11, opacity: 0.5, marginTop: 4 }}>
         {isOver
-          ? `⚠️ Превышено на ₽${Math.round(data.spent - data.limit).toLocaleString('ru')}`
-          : `Осталось ₽${Math.round(data.remaining).toLocaleString('ru')}`}
+          ? `⚠️ Превышено на ₽${Math.round(Math.abs(data.spent - data.limit)).toLocaleString('ru')}`
+          : `Осталось ₽${Math.round(Math.max(data.remaining, 0)).toLocaleString('ru')}`}
       </div>
     </div>
   )
