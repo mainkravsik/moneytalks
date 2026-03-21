@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Tabbar } from '@telegram-apps/telegram-ui'
 import Dashboard from './pages/Dashboard'
 import Budget from './pages/Budget'

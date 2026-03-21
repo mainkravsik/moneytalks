@@ -1,0 +1,25 @@
+import { api } from './client'
+
+export interface Loan {
+  id: number; name: string; bank: string | null
+  original_amount: number; remaining_amount: number
+  interest_rate: number; monthly_payment: number
+  next_payment_date: string; start_date: string; is_active: boolean
+}
+
+export interface StrategyResult {
+  strategy: string; months_to_payoff: number
+  total_interest: number; total_paid: number; extra: number
+}
+
+export interface PayoffResponse {
+  snowball: StrategyResult; avalanche: StrategyResult
+  savings_with_avalanche: number
+}
+
+export const fetchLoans = () => api.get<Loan[]>('/loans').then(r => r.data)
+export const fetchPayoff = (extra = 0) =>
+  api.get<PayoffResponse>(`/loans/payoff?extra=${extra}`).then(r => r.data)
+export const recordPayment = (id: number, amount: number) =>
+  api.post<Loan>(`/loans/${id}/payment`, { amount }).then(r => r.data)
+export const createLoan = (data: Partial<Loan>) => api.post<Loan>('/loans', data).then(r => r.data)
