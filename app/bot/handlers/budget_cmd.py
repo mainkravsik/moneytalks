@@ -37,7 +37,7 @@ async def cmd_budget(message: Message):
             )
             .group_by(Transaction.category_id)
         )
-        spent_map = {row.category_id: float(row.t) for row in spent_q.all()}
+        spent_map = {row[0]: float(row[1]) for row in spent_q.all()}
 
     if not limits_rows:
         await message.answer("📭 Категории и лимиты не настроены. Открой мини-апп.")
