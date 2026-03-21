@@ -1,10 +1,12 @@
+from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.auth import get_tg_user
 from app.api.schemas.category import CategoryCreate, CategoryOut
 from app.db.base import get_db
-from app.db.models import Category
+from app.db.models import Category, BudgetLimit
+from app.services.period_db import get_or_create_period
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
@@ -26,6 +28,9 @@ async def create_category(
 ):
     cat = Category(name=body.name, emoji=body.emoji)
     db.add(cat)
+    await db.flush()  # get cat.id without committing
+    period = await get_or_create_period(db)
+    db.add(BudgetLimit(period_id=period.id, category_id=cat.id, limit_amount=Decimal("0")))
     await db.commit()
     await db.refresh(cat)
     return cat
