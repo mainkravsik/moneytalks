@@ -7,6 +7,8 @@ from app.bot.middlewares.auth import WhitelistMiddleware
 from app.bot.handlers.start import router as start_router
 from app.bot.handlers.add import router as add_router
 from app.bot.handlers.budget_cmd import router as budget_cmd_router
+from app.bot.handlers.piggy_cmd import router as piggy_cmd_router
+from app.bot.handlers.debt_cmd import router as debt_cmd_router
 
 settings = get_settings()
 
@@ -23,4 +25,6 @@ def create_dispatcher() -> Dispatcher:
     dp.include_router(start_router)
     dp.include_router(add_router)
     dp.include_router(budget_cmd_router)
+    dp.include_router(piggy_cmd_router)
+    dp.include_router(debt_cmd_router)
     return dp

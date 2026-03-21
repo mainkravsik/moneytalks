@@ -1,27 +1,19 @@
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.auth import get_tg_user
+from app.api.deps import get_or_create_user
 from app.api.schemas.transaction import TransactionCreate, TransactionUpdate, TransactionOut
 from app.db.base import get_db
-from app.db.models import Transaction, User
+from app.db.models import Transaction, User, Category, BudgetLimit
 from app.services.period_db import get_or_create_period, get_current_period
 from app.services.cache import invalidate_safe_to_spend
+from app.services.notifications import limit_exceeded_text
+from app.config import get_settings as _get_settings
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
-
-
-async def _get_or_create_user(tg_user: dict, db: AsyncSession) -> User:
-    result = await db.execute(select(User).where(User.telegram_id == tg_user["id"]))
-    user = result.scalar_one_or_none()
-    if not user:
-        user = User(telegram_id=tg_user["id"], name=tg_user.get("first_name", "User"))
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
-    return user
 
 
 @router.post("", response_model=TransactionOut, status_code=201)
@@ -30,7 +22,7 @@ async def add_transaction(
     db: AsyncSession = Depends(get_db),
     tg_user: dict = Depends(get_tg_user),
 ):
-    user = await _get_or_create_user(tg_user, db)
+    user = await get_or_create_user(tg_user, db)
     await get_or_create_period(db)  # ensure period exists
     tx = Transaction(
         user_id=user.id,
@@ -42,6 +34,45 @@ async def add_transaction(
     await db.commit()
     await db.refresh(tx)
     await invalidate_safe_to_spend()
+
+    # Check if limit exceeded for this category in the current period
+    period = await get_or_create_period(db)
+    limit_q = await db.execute(
+        select(BudgetLimit).where(
+            BudgetLimit.period_id == period.id,
+            BudgetLimit.category_id == body.category_id,
+        )
+    )
+    budget_limit = limit_q.scalar_one_or_none()
+    if budget_limit:
+        spent_q = await db.execute(
+            select(func.sum(Transaction.amount))
+            .where(
+                Transaction.category_id == body.category_id,
+                Transaction.is_deleted == False,
+                Transaction.created_at >= datetime.combine(period.start_date, datetime.min.time()).replace(tzinfo=timezone.utc),
+            )
+        )
+        total_spent = float(spent_q.scalar() or 0)
+        limit_val = float(budget_limit.limit_amount)
+        if total_spent > limit_val:
+            cat_q = await db.execute(select(Category).where(Category.id == body.category_id))
+            cat = cat_q.scalar_one_or_none()
+            if cat:
+                from aiogram import Bot
+                _s = _get_settings()
+                _bot = Bot(token=_s.bot_token)
+                for tg_id in _s.allowed_user_ids:
+                    try:
+                        await _bot.send_message(
+                            tg_id,
+                            limit_exceeded_text(cat.emoji, cat.name, total_spent, limit_val),
+                            parse_mode="HTML"
+                        )
+                    except Exception:
+                        pass
+                await _bot.session.close()
+
     return tx
 
 
