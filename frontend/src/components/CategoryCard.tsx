@@ -1,11 +1,21 @@
+import { useRef } from 'react'
 import { CategoryBudget } from '../api/budget'
 
 interface Props {
   data: CategoryBudget
   onClick?: () => void
+  onLongPress?: () => void
 }
 
-export default function CategoryCard({ data, onClick }: Props) {
+export default function CategoryCard({ data, onClick, onLongPress }: Props) {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleTouchStart = () => {
+    timer.current = setTimeout(() => { onLongPress?.() }, 500)
+  }
+  const handleTouchEnd = () => {
+    if (timer.current) clearTimeout(timer.current)
+  }
   const pct = Math.min(data.percent_used, 1)
   const barColor = data.percent_used < 0.7 ? '#4CAF50'
     : data.percent_used < 1 ? '#FF9800'
@@ -15,6 +25,9 @@ export default function CategoryCard({ data, onClick }: Props) {
   return (
     <div
       onClick={onClick}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchEnd}
       style={{
         border: `1px solid ${isOver ? 'rgba(244,67,54,0.4)' : 'rgba(128,128,128,0.2)'}`,
         borderRadius: 10,
