@@ -12,8 +12,8 @@ export default function Dashboard() {
 
   useEffect(() => { fetch() }, [fetch])
   useEffect(() => {
-    fetchPiggies().then(pigs => setPiggyTotal(pigs.reduce((s, p) => s + p.current_amount, 0)))
-    fetchLoans().then(loans => setLoanTotal(loans.reduce((s, l) => s + l.remaining_amount, 0)))
+    fetchPiggies().then(pigs => setPiggyTotal(pigs.reduce((s, p) => s + Number(p.current_amount), 0)))
+    fetchLoans().then(loans => setLoanTotal(loans.reduce((s, l) => s + Number(l.remaining_amount), 0)))
   }, [])
 
   if (loading) return <div style={{ padding: 16, textAlign: 'center', paddingTop: 40 }}>Загрузка...</div>
@@ -21,7 +21,10 @@ export default function Dashboard() {
   if (!data) return <div style={{ padding: 16 }}>Нет данных</div>
 
   const top3 = data.categories.slice(0, 3)
-  const fmt = (n: number) => Math.round(n).toLocaleString('ru-RU')
+  const fmt = (n: number) => {
+    const rounded = Math.round(n)
+    return rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  }
 
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
