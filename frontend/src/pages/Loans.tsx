@@ -3,6 +3,7 @@ import { fetchLoans, Loan, recordPayment, createLoan, updateLoan, deleteLoan } f
 import { CardSummary, fetchCardSummary, addCharge } from '../api/card'
 import ExtraPaymentSlider from '../components/ExtraPaymentSlider'
 import CardDetail from './CardDetail'
+import LoanDetail from './LoanDetail'
 
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '10px 12px', borderRadius: 8,
@@ -360,7 +361,7 @@ function CardLoanCard({ loan, onPayment, onEdit, onDelete, onAddCharge, onDetail
   )
 }
 
-function RegularLoanCard({ loan, onPayment, onEdit, onDelete }: { loan: Loan; onPayment: () => void; onEdit: () => void; onDelete: () => void }) {
+function RegularLoanCard({ loan, onPayment, onEdit, onDelete, onOpenDetail }: { loan: Loan; onPayment: () => void; onEdit: () => void; onDelete: () => void; onOpenDetail: () => void }) {
   const orig = loan.original_amount ?? loan.remaining_amount
   const pct = orig > 0 ? 1 - loan.remaining_amount / orig : 0
   const monthlyRate = parseFloat(String(loan.interest_rate)) / 100 / 12
@@ -392,9 +393,14 @@ function RegularLoanCard({ loan, onPayment, onEdit, onDelete }: { loan: Loan; on
         <span>Платёж: ₽{loan.monthly_payment.toLocaleString('ru')}</span>
         <span>Следующий: {loan.next_payment_date}</span>
       </div>
-      <button onClick={onPayment} style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#E8F5E9', color: '#388E3C', fontSize: 12 }}>
-        ✓ Записать платёж
-      </button>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button onClick={onPayment} style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#E8F5E9', color: '#388E3C', fontSize: 12 }}>
+          ✓ Записать платёж
+        </button>
+        <button onClick={onOpenDetail} style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: 'rgba(128,128,128,0.1)', color: 'inherit', fontSize: 12, marginLeft: 'auto' }}>
+          Подробнее →
+        </button>
+      </div>
     </div>
   )
 }
@@ -429,9 +435,12 @@ export default function LoansPage() {
     load()
   }
 
-  // Show CardDetail page
+  // Show detail page
   if (detailLoan) {
-    return <CardDetail loan={detailLoan} onBack={() => { setDetailLoan(null); load() }} />
+    if (detailLoan.loan_type === 'card') {
+      return <CardDetail loan={detailLoan} onBack={() => { setDetailLoan(null); load() }} />
+    }
+    return <LoanDetail loan={detailLoan} onBack={() => { setDetailLoan(null); load() }} />
   }
 
   const regularLoans = loans.filter(l => l.loan_type === 'loan')
@@ -472,6 +481,7 @@ export default function LoansPage() {
                 onPayment={() => handlePayment(loan)}
                 onEdit={() => handleEdit(loan)}
                 onDelete={() => setDeletingLoan(loan)}
+                onOpenDetail={() => setDetailLoan(loan)}
               />
             ))}
           </div>

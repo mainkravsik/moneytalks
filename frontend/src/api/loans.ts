@@ -36,3 +36,19 @@ export const recordPayment = (id: number, amount: number) =>
 export const createLoan = (data: Partial<Loan>) => api.post<Loan>('/loans', data).then(r => r.data)
 export const updateLoan = (id: number, data: Partial<Loan>) => api.patch<Loan>(`/loans/${id}`, data).then(r => r.data)
 export const deleteLoan = (id: number) => api.delete(`/loans/${id}`).then(r => r.data)
+
+export const fetchPayments = (id: number) =>
+  api.get<{id: number; amount: number; paid_at: string}[]>(`/loans/${id}/payments`).then(r => r.data)
+
+export const fetchSchedule = (id: number) =>
+  api.get<{
+    schedule: {month: number; date: string; payment: number; principal: number; interest: number; balance: number}[]
+    total_months: number; total_interest: number; total_paid: number
+  }>(`/loans/${id}/schedule`).then(r => r.data)
+
+export const fetchEarlyPayoff = (id: number, extra: number) =>
+  api.get<{
+    normal: {months: number; total_interest: number; total_paid: number}
+    with_extra: {months: number; total_interest: number; total_paid: number; extra_per_month: number}
+    savings: {months_saved: number; interest_saved: number}
+  }>(`/loans/${id}/early-payoff?extra=${extra}`).then(r => r.data)
