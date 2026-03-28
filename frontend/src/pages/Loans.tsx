@@ -6,12 +6,14 @@ import CardDetail from './CardDetail'
 import LoanDetail from './LoanDetail'
 
 const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '10px 12px', borderRadius: 8,
-  border: '1px solid rgba(128,128,128,0.3)', fontSize: 15,
-  background: 'transparent', color: 'inherit', boxSizing: 'border-box',
+  width: '100%', padding: '12px 14px', borderRadius: 12,
+  border: '1px solid rgba(128,128,128,0.2)', fontSize: 15,
+  background: 'var(--tg-theme-secondary-bg-color, #2c2c2e)',
+  color: 'var(--tg-theme-text-color, #fff)', boxSizing: 'border-box',
   marginBottom: 10,
 }
-const labelStyle: React.CSSProperties = { fontSize: 12, opacity: 0.5, marginBottom: 4 }
+const labelStyle: React.CSSProperties = { fontSize: 12, color: 'var(--tg-theme-hint-color, #8e8e93)', marginBottom: 4 }
+const fmt = (n: number) => Math.round(Number(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
 
 function ConfirmDeleteModal({ loan, onClose, onConfirm }: { loan: Loan; onClose: () => void; onConfirm: () => void }) {
   const [deleting, setDeleting] = useState(false)
@@ -23,17 +25,17 @@ function ConfirmDeleteModal({ loan, onClose, onConfirm }: { loan: Loan; onClose:
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 110 }}>
-      <div style={{ background: 'var(--tg-theme-bg-color, #1c1c1e)', borderRadius: 16, padding: 24, width: '85%', maxWidth: 320, textAlign: 'center' }}>
+      <div style={{ background: 'var(--tg-theme-bg-color, #1c1c1e)', borderRadius: 14, padding: 24, width: '85%', maxWidth: 320, textAlign: 'center' }}>
         <div style={{ fontSize: 40, marginBottom: 12 }}>🗑️</div>
-        <div style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>Удалить {loan.loan_type === 'card' ? 'карту' : 'кредит'}?</div>
-        <div style={{ fontSize: 14, opacity: 0.6, marginBottom: 20 }}>
+        <div style={{ fontWeight: 600, fontSize: 17, marginBottom: 8 }}>Удалить {loan.loan_type === 'card' ? 'карту' : 'кредит'}?</div>
+        <div style={{ fontSize: 14, color: 'var(--tg-theme-hint-color, #8e8e93)', marginBottom: 20 }}>
           «{loan.name}» будет удалён. Это действие нельзя отменить.
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: 12, borderRadius: 8, border: '1px solid rgba(128,128,128,0.3)', background: 'transparent', color: 'inherit', fontSize: 14 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: 14, borderRadius: 12, border: '1px solid rgba(128,128,128,0.2)', background: 'transparent', color: 'var(--tg-theme-text-color, #fff)', fontSize: 15 }}>
             Отмена
           </button>
-          <button onClick={handleConfirm} disabled={deleting} style={{ flex: 1, padding: 12, borderRadius: 8, border: 'none', background: '#F44336', color: '#fff', fontSize: 14, fontWeight: 'bold' }}>
+          <button onClick={handleConfirm} disabled={deleting} style={{ flex: 1, padding: 14, borderRadius: 12, border: 'none', background: '#F44336', color: '#fff', fontSize: 15, fontWeight: 600 }}>
             {deleting ? '...' : 'Удалить'}
           </button>
         </div>
@@ -138,8 +140,8 @@ function LoanModal({ onClose, onSave, editLoan }: { onClose: () => void; onSave:
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', zIndex: 100 }}>
-      <div style={{ background: 'var(--tg-theme-bg-color, #1c1c1e)', width: '100%', borderRadius: '16px 16px 0 0', padding: 20, maxHeight: '90vh', overflowY: 'auto' }}>
-        <div style={{ fontWeight: 'bold', marginBottom: 14, fontSize: 16 }}>
+      <div style={{ background: 'var(--tg-theme-bg-color, #1c1c1e)', width: '100%', borderRadius: '14px 14px 0 0', padding: '20px 16px', paddingBottom: 'max(20px, env(safe-area-inset-bottom))', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ fontWeight: 600, marginBottom: 16, fontSize: 17 }}>
           {isEdit ? 'Редактировать' : 'Новый долг'}
         </div>
 
@@ -148,9 +150,9 @@ function LoanModal({ onClose, onSave, editLoan }: { onClose: () => void; onSave:
           <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
             {(['loan', 'card'] as const).map(t => (
               <button key={t} onClick={() => setType(t)} style={{
-                flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 'bold',
-                background: type === t ? '#2196F3' : 'rgba(128,128,128,0.15)',
-                color: type === t ? '#fff' : 'inherit',
+                flex: 1, padding: '10px 0', borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 600,
+                background: type === t ? 'var(--tg-theme-button-color, #60a8eb)' : 'var(--tg-theme-secondary-bg-color, #2c2c2e)',
+                color: type === t ? 'var(--tg-theme-button-text-color, #fff)' : 'var(--tg-theme-text-color, #fff)',
               }}>
                 {t === 'loan' ? '💳 Кредит' : '🃏 Кредитная карта'}
               </button>
@@ -209,11 +211,11 @@ function LoanModal({ onClose, onSave, editLoan }: { onClose: () => void; onSave:
           </>
         )}
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: 12, borderRadius: 8, border: '1px solid rgba(128,128,128,0.3)', background: 'transparent', color: 'inherit', fontSize: 14 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: 14, borderRadius: 12, border: '1px solid rgba(128,128,128,0.2)', background: 'transparent', color: 'var(--tg-theme-text-color, #fff)', fontSize: 15 }}>
             Отмена
           </button>
-          <button onClick={handleSave} disabled={saving} style={{ flex: 2, padding: 12, borderRadius: 8, border: 'none', background: '#2196F3', color: '#fff', fontSize: 14, fontWeight: 'bold' }}>
+          <button onClick={handleSave} disabled={saving} style={{ flex: 2, padding: 14, borderRadius: 12, border: 'none', background: 'var(--tg-theme-button-color, #60a8eb)', color: 'var(--tg-theme-button-text-color, #fff)', fontSize: 15, fontWeight: 600 }}>
             {saving ? '...' : isEdit ? 'Сохранить' : 'Добавить'}
           </button>
         </div>
@@ -244,20 +246,20 @@ function AddChargeModal({ loanId, onClose, onSave }: { loanId: number; onClose: 
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', zIndex: 100 }}>
-      <div style={{ background: 'var(--tg-theme-bg-color, #1c1c1e)', width: '100%', borderRadius: '16px 16px 0 0', padding: 20 }}>
-        <div style={{ fontWeight: 'bold', marginBottom: 14, fontSize: 16 }}>Новая трата</div>
+      <div style={{ background: 'var(--tg-theme-bg-color, #1c1c1e)', width: '100%', borderRadius: '14px 14px 0 0', padding: '20px 16px', paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}>
+        <div style={{ fontWeight: 600, marginBottom: 16, fontSize: 17 }}>Новая трата</div>
 
         {/* Type selector */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
           {([
             { key: 'purchase' as const, label: '🛒 Покупка' },
             { key: 'transfer' as const, label: '🔄 Перевод' },
             { key: 'cash' as const, label: '💵 Наличные' },
           ]).map(t => (
             <button key={t.key} onClick={() => setChargeType(t.key)} style={{
-              flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', fontSize: 12, fontWeight: 'bold',
-              background: chargeType === t.key ? '#2196F3' : 'rgba(128,128,128,0.15)',
-              color: chargeType === t.key ? '#fff' : 'inherit',
+              flex: 1, padding: '10px 0', borderRadius: 10, border: 'none', fontSize: 13, fontWeight: 600,
+              background: chargeType === t.key ? 'var(--tg-theme-button-color, #60a8eb)' : 'var(--tg-theme-secondary-bg-color, #2c2c2e)',
+              color: chargeType === t.key ? 'var(--tg-theme-button-text-color, #fff)' : 'var(--tg-theme-text-color, #fff)',
             }}>
               {t.label}
             </button>
@@ -269,11 +271,11 @@ function AddChargeModal({ loanId, onClose, onSave }: { loanId: number; onClose: 
         <div style={labelStyle}>Дата</div>
         <input style={inputStyle} type="date" value={chargeDate} onChange={e => setChargeDate(e.target.value)} />
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: 12, borderRadius: 8, border: '1px solid rgba(128,128,128,0.3)', background: 'transparent', color: 'inherit', fontSize: 14 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: 14, borderRadius: 12, border: '1px solid rgba(128,128,128,0.2)', background: 'transparent', color: 'var(--tg-theme-text-color, #fff)', fontSize: 15 }}>
             Отмена
           </button>
-          <button onClick={handleSave} disabled={saving || !amount} style={{ flex: 2, padding: 12, borderRadius: 8, border: 'none', background: '#2196F3', color: '#fff', fontSize: 14, fontWeight: 'bold' }}>
+          <button onClick={handleSave} disabled={saving || !amount} style={{ flex: 2, padding: 14, borderRadius: 12, border: 'none', background: 'var(--tg-theme-button-color, #60a8eb)', color: 'var(--tg-theme-button-text-color, #fff)', fontSize: 15, fontWeight: 600 }}>
             {saving ? '...' : 'Добавить'}
           </button>
         </div>
@@ -347,24 +349,24 @@ function CardLoanCard({ loan, onPayment, onEdit, onDelete, onAddCharge, onDetail
   const hasOverdue = summary?.grace_buckets.some(b => b.is_overdue) ?? false
 
   return (
-    <div style={{ border: `1px solid ${hasOverdue ? 'rgba(244,67,54,0.4)' : 'rgba(128,128,128,0.2)'}`, borderRadius: 10, padding: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-        <span style={{ fontWeight: 'bold' }}>🃏 {loan.name}</span>
+    <div style={{ background: 'var(--tg-theme-bg-color, #1c1c1e)', borderRadius: 12, padding: '12px 14px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <span style={{ fontWeight: 600, fontSize: 15 }}>🃏 {loan.name}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ fontSize: 12, opacity: 0.6 }}>{loan.bank || ''}</span>
+          <span style={{ fontSize: 13, color: 'var(--tg-theme-hint-color, #8e8e93)' }}>{loan.bank || ''}</span>
           <CardMenu onEdit={onEdit} onDelete={onDelete} />
         </div>
       </div>
 
       {hasOverdue && (
-        <div style={{ fontSize: 12, color: '#F44336', marginBottom: 6 }}>⚠️ Есть просроченные траты · {loan.interest_rate}% годовых</div>
+        <div style={{ fontSize: 13, color: '#F44336', marginBottom: 6 }}>⚠️ Просроченные траты · {loan.interest_rate}%</div>
       )}
 
-      <div style={{ fontSize: 13, marginBottom: 6 }}>
-        Долг: <b>₽{debt.toLocaleString('ru')}</b> · Доступно: ₽{available.toLocaleString('ru')} / ₽{limit.toLocaleString('ru')}
+      <div style={{ fontSize: 14, marginBottom: 8 }}>
+        Долг: <b>₽{fmt(Number(debt))}</b> · Доступно: ₽{fmt(Number(available))} / ₽{fmt(Number(limit))}
       </div>
 
-      <div style={{ background: 'rgba(128,128,128,0.2)', borderRadius: 4, height: 6, marginBottom: 6 }}>
+      <div style={{ background: 'var(--tg-theme-secondary-bg-color, #2c2c2e)', borderRadius: 4, height: 6, marginBottom: 8 }}>
         <div style={{ background: hasOverdue ? '#F44336' : '#FF9800', width: `${Math.min(usedPct * 100, 100)}%`, height: 6, borderRadius: 4 }} />
       </div>
 
@@ -373,34 +375,34 @@ function CardLoanCard({ loan, onPayment, onEdit, onDelete, onAddCharge, onDetail
         <div style={{ marginBottom: 8 }}>
           {summary.grace_buckets.map((b, i) => (
             <div key={i} style={{
-              fontSize: 11, padding: '3px 0',
+              fontSize: 12, padding: '2px 0',
               color: b.is_overdue ? '#F44336' : '#4CAF50',
             }}>
-              {b.is_overdue ? '⚠️' : '✓'} до {b.deadline}: ₽{b.total.toLocaleString('ru')}
+              {b.is_overdue ? '⚠️' : '✓'} до {b.deadline}: ₽{fmt(Number(b.total))}
             </div>
           ))}
         </div>
       )}
 
       {summary && summary.non_grace_debt > 0 && (
-        <div style={{ fontSize: 11, color: '#FF9800', marginBottom: 6 }}>
-          Без льготы: ₽{summary.non_grace_debt.toLocaleString('ru')} · %: ₽{summary.accrued_interest.toLocaleString('ru')}
+        <div style={{ fontSize: 12, color: '#FF9800', marginBottom: 6 }}>
+          Без льготы: ₽{fmt(Number(summary.non_grace_debt))} · %: ₽{fmt(Number(summary.accrued_interest))}
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, opacity: 0.6, marginBottom: 8 }}>
-        <span>Мин. платёж: ₽{(summary?.min_payment ?? loan.monthly_payment).toLocaleString('ru')}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--tg-theme-hint-color, #8e8e93)', marginBottom: 10 }}>
+        <span>Мин. платёж: ₽{fmt(Number(summary?.min_payment ?? loan.monthly_payment))}</span>
         <span>До: {loan.next_payment_date}</span>
       </div>
 
-      <div style={{ display: 'flex', gap: 6 }}>
-        <button onClick={onPayment} style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#E8F5E9', color: '#388E3C', fontSize: 12 }}>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={onPayment} style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: 'rgba(76,175,80,0.12)', color: '#4CAF50', fontSize: 13, fontWeight: 500 }}>
           ✓ Платёж
         </button>
-        <button onClick={onAddCharge} style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: 'rgba(33,150,243,0.12)', color: '#2196F3', fontSize: 12 }}>
+        <button onClick={onAddCharge} style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: 'rgba(96,168,235,0.12)', color: 'var(--tg-theme-button-color, #60a8eb)', fontSize: 13, fontWeight: 500 }}>
           + Трата
         </button>
-        <button onClick={onDetail} style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: 'rgba(128,128,128,0.1)', color: 'inherit', fontSize: 12, marginLeft: 'auto' }}>
+        <button onClick={onDetail} style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: 'var(--tg-theme-secondary-bg-color, #2c2c2e)', color: 'var(--tg-theme-text-color, #fff)', fontSize: 13, marginLeft: 'auto' }}>
           Подробнее →
         </button>
       </div>
@@ -422,38 +424,38 @@ function RegularLoanCard({ loan, onPayment, onEdit, onDelete, onOpenDetail }: { 
   }
 
   return (
-    <div style={{ border: '1px solid rgba(128,128,128,0.2)', borderRadius: 10, padding: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-        <span style={{ fontWeight: 'bold' }}>💳 {loan.name}</span>
+    <div style={{ background: 'var(--tg-theme-bg-color, #1c1c1e)', borderRadius: 12, padding: '12px 14px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <span style={{ fontWeight: 600, fontSize: 15 }}>💳 {loan.name}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ fontSize: 12, opacity: 0.6 }}>{loan.bank || ''}</span>
+          <span style={{ fontSize: 13, color: 'var(--tg-theme-hint-color, #8e8e93)' }}>{loan.bank || ''}</span>
           <CardMenu onEdit={onEdit} onDelete={onDelete} />
         </div>
       </div>
-      <div style={{ fontSize: 13, marginBottom: 6 }}>
-        Остаток: <b>₽{loan.remaining_amount.toLocaleString('ru')}</b> · {loan.rate_periods?.length > 0 ? (
+      <div style={{ fontSize: 14, marginBottom: 6 }}>
+        Остаток: <b>₽{fmt(Number(loan.remaining_amount))}</b> · {loan.rate_periods?.length > 0 ? (
           <span title="Переменная ставка">📊 перем.</span>
         ) : <>{loan.interest_rate}%</>} · ещё ~{monthsLeft} мес.
       </div>
       {loan.rate_periods?.length > 0 && (
-        <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 4 }}>
+        <div style={{ fontSize: 12, color: 'var(--tg-theme-hint-color, #8e8e93)', marginBottom: 4 }}>
           {loan.rate_periods.map((rp, i) => (
             <span key={i}>{i > 0 ? ' → ' : ''}{rp.rate}%{rp.end_date ? ` до ${rp.end_date}` : ''}</span>
           ))}
         </div>
       )}
-      <div style={{ background: 'rgba(128,128,128,0.2)', borderRadius: 4, height: 6, marginBottom: 6 }}>
+      <div style={{ background: 'var(--tg-theme-secondary-bg-color, #2c2c2e)', borderRadius: 4, height: 6, marginBottom: 8 }}>
         <div style={{ background: '#4CAF50', width: `${Math.min(pct * 100, 100)}%`, height: 6, borderRadius: 4 }} />
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, opacity: 0.6, marginBottom: 8 }}>
-        <span>Платёж: ₽{loan.monthly_payment.toLocaleString('ru')}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--tg-theme-hint-color, #8e8e93)', marginBottom: 10 }}>
+        <span>Платёж: ₽{fmt(Number(loan.monthly_payment))}</span>
         <span>Следующий: {loan.next_payment_date}</span>
       </div>
-      <div style={{ display: 'flex', gap: 6 }}>
-        <button onClick={onPayment} style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#E8F5E9', color: '#388E3C', fontSize: 12 }}>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={onPayment} style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: 'rgba(76,175,80,0.12)', color: '#4CAF50', fontSize: 13, fontWeight: 500 }}>
           ✓ Записать платёж
         </button>
-        <button onClick={onOpenDetail} style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: 'rgba(128,128,128,0.1)', color: 'inherit', fontSize: 12, marginLeft: 'auto' }}>
+        <button onClick={onOpenDetail} style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: 'var(--tg-theme-secondary-bg-color, #2c2c2e)', color: 'var(--tg-theme-text-color, #fff)', fontSize: 13, marginLeft: 'auto' }}>
           Подробнее →
         </button>
       </div>
@@ -477,11 +479,11 @@ function SmartDistribute() {
     setLoading(false)
   }
 
-  const fmt = (n: number) => n.toLocaleString('ru-RU', { maximumFractionDigits: 2 })
+  const fmtLocal = (n: number) => Math.round(Number(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
 
   return (
-    <div style={{ background: 'linear-gradient(135deg, rgba(33,150,243,0.1), rgba(76,175,80,0.1))', borderRadius: 12, padding: 14, marginBottom: 16 }}>
-      <div style={{ fontWeight: 'bold', fontSize: 14, marginBottom: 10 }}>🧠 Куда закинуть свободные деньги?</div>
+    <div style={{ background: 'var(--tg-theme-bg-color, #1c1c1e)', borderRadius: 12, padding: '14px 16px' }}>
+      <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 12 }}>🧠 Куда закинуть свободные деньги?</div>
       <div style={{ display: 'flex', gap: 8 }}>
         <input
           style={{ ...inputStyle, flex: 1, marginBottom: 0 }}
@@ -494,47 +496,47 @@ function SmartDistribute() {
         <button
           onClick={handleCalculate}
           disabled={loading || !amount}
-          style={{ padding: '10px 16px', borderRadius: 8, border: 'none', background: '#2196F3', color: '#fff', fontSize: 13, fontWeight: 'bold', whiteSpace: 'nowrap' }}
+          style={{ padding: '10px 16px', borderRadius: 10, border: 'none', background: 'var(--tg-theme-button-color, #60a8eb)', color: 'var(--tg-theme-button-text-color, #fff)', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap' }}
         >
           {loading ? '...' : 'Рассчитать'}
         </button>
       </div>
 
       {result && result.allocations.length > 0 && (
-        <div style={{ marginTop: 12 }}>
-          <div style={{ fontSize: 12, opacity: 0.6, marginBottom: 8 }}>РЕКОМЕНДАЦИЯ:</div>
+        <div style={{ marginTop: 14 }}>
+          <div style={{ fontSize: 12, color: 'var(--tg-theme-hint-color, #8e8e93)', marginBottom: 8 }}>РЕКОМЕНДАЦИЯ:</div>
           {result.allocations.map((a, i) => (
             <div key={a.loan_id} style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '8px 10px', marginBottom: 4,
-              background: 'rgba(128,128,128,0.08)', borderRadius: 8,
+              padding: '10px 12px', marginBottom: 6,
+              background: 'var(--tg-theme-secondary-bg-color, #2c2c2e)', borderRadius: 10,
             }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 'bold' }}>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>
                   {i + 1}. {a.loan_name}
                 </div>
-                <div style={{ fontSize: 11, opacity: 0.6 }}>
+                <div style={{ fontSize: 12, color: 'var(--tg-theme-hint-color, #8e8e93)' }}>
                   {a.bank} · {a.rate}%{a.label ? ` · ${a.label}` : ''}
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 14, fontWeight: 'bold', color: '#2196F3' }}>₽{fmt(a.amount)}</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--tg-theme-button-color, #60a8eb)' }}>₽{fmtLocal(a.amount)}</div>
                 {a.savings > 0 && (
-                  <div style={{ fontSize: 10, color: '#4CAF50' }}>−₽{fmt(a.savings)} переплаты</div>
+                  <div style={{ fontSize: 11, color: '#4CAF50' }}>-₽{fmtLocal(a.savings)} переплаты</div>
                 )}
               </div>
             </div>
           ))}
 
           {result.total_savings > 0 && (
-            <div style={{ textAlign: 'center', marginTop: 8, fontSize: 13 }}>
-              Общая экономия: <b style={{ color: '#4CAF50' }}>₽{fmt(result.total_savings)}</b>
+            <div style={{ textAlign: 'center', marginTop: 10, fontSize: 14 }}>
+              Общая экономия: <b style={{ color: '#4CAF50' }}>₽{fmtLocal(result.total_savings)}</b>
             </div>
           )}
 
           {result.unallocated > 0 && (
-            <div style={{ textAlign: 'center', marginTop: 4, fontSize: 11, opacity: 0.5 }}>
-              Остаток без распределения: ₽{fmt(result.unallocated)}
+            <div style={{ textAlign: 'center', marginTop: 4, fontSize: 12, color: 'var(--tg-theme-hint-color, #8e8e93)' }}>
+              Остаток без распределения: ₽{fmtLocal(result.unallocated)}
             </div>
           )}
         </div>
@@ -585,20 +587,36 @@ export default function LoansPage() {
   const cards = loans.filter(l => l.loan_type === 'card')
 
   return (
-    <div style={{ padding: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h3 style={{ margin: 0 }}>💳 Кредиты и карты</h3>
-        <button onClick={() => { setEditingLoan(undefined); setShowModal(true) }} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#2196F3', color: '#fff', fontSize: 13, fontWeight: 'bold' }}>
+    <div style={{ paddingBottom: 8 }}>
+      {/* Header */}
+      <div style={{
+        background: 'var(--tg-theme-bg-color, #1c1c1e)',
+        padding: '14px 16px', marginBottom: 8,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      }}>
+        <span style={{ fontWeight: 700, fontSize: 17 }}>💳 Кредиты и карты</span>
+        <button onClick={() => { setEditingLoan(undefined); setShowModal(true) }} style={{
+          padding: '8px 14px', borderRadius: 10, border: 'none',
+          background: 'var(--tg-theme-button-color, #60a8eb)',
+          color: 'var(--tg-theme-button-text-color, #fff)',
+          fontSize: 13, fontWeight: 600,
+        }}>
           + Добавить
         </button>
       </div>
 
-      {loans.length > 0 && <SmartDistribute />}
+      {/* Smart distribute */}
+      {loans.length > 0 && (
+        <div style={{ padding: '0 16px', marginBottom: 8 }}>
+          <SmartDistribute />
+        </div>
+      )}
 
+      {/* Credit cards */}
       {cards.length > 0 && (
-        <>
-          <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 8 }}>КРЕДИТНЫЕ КАРТЫ</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+        <div style={{ padding: '0 16px', marginBottom: 8 }}>
+          <div style={{ fontSize: 13, color: 'var(--tg-theme-hint-color, #8e8e93)', marginBottom: 8, paddingLeft: 2 }}>КРЕДИТНЫЕ КАРТЫ</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {cards.map(loan => (
               <CardLoanCard key={loan.id} loan={loan}
                 onPayment={() => handlePayment(loan)}
@@ -609,13 +627,14 @@ export default function LoansPage() {
               />
             ))}
           </div>
-        </>
+        </div>
       )}
 
+      {/* Regular loans */}
       {regularLoans.length > 0 && (
-        <>
-          <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 8 }}>КРЕДИТЫ</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+        <div style={{ padding: '0 16px', marginBottom: 8 }}>
+          <div style={{ fontSize: 13, color: 'var(--tg-theme-hint-color, #8e8e93)', marginBottom: 8, paddingLeft: 2 }}>КРЕДИТЫ</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {regularLoans.map(loan => (
               <RegularLoanCard key={loan.id} loan={loan}
                 onPayment={() => handlePayment(loan)}
@@ -625,14 +644,18 @@ export default function LoansPage() {
               />
             ))}
           </div>
-        </>
+        </div>
       )}
 
       {loans.length === 0 && (
-        <div style={{ opacity: 0.5, textAlign: 'center', marginTop: 40 }}>Кредитов и карт нет</div>
+        <div style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--tg-theme-hint-color, #8e8e93)' }}>Кредитов и карт нет</div>
       )}
 
-      {regularLoans.length > 0 && <ExtraPaymentSlider />}
+      {regularLoans.length > 0 && (
+        <div style={{ padding: '0 16px', marginBottom: 8 }}>
+          <ExtraPaymentSlider />
+        </div>
+      )}
 
       {showModal && (
         <LoanModal

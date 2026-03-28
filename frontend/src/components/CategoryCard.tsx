@@ -7,6 +7,8 @@ interface Props {
   onLongPress?: () => void
 }
 
+const fmt = (n: number) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+
 export default function CategoryCard({ data, onClick, onLongPress }: Props) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -29,32 +31,31 @@ export default function CategoryCard({ data, onClick, onLongPress }: Props) {
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchEnd}
       style={{
-        border: `1px solid ${isOver ? 'rgba(244,67,54,0.4)' : 'rgba(128,128,128,0.2)'}`,
-        borderRadius: 10,
-        padding: 12,
-        background: isOver ? 'rgba(244,67,54,0.05)' : undefined,
+        background: isOver ? 'rgba(244,67,54,0.06)' : 'var(--tg-theme-secondary-bg-color, #2c2c2e)',
+        borderRadius: 12,
+        padding: '12px 14px',
         cursor: onClick ? 'pointer' : 'default',
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-        <span style={{ fontSize: 14 }}>{data.category.emoji} {data.category.name}</span>
-        <span style={{ fontSize: 12, color: barColor, fontWeight: 'bold' }}>
-          ₽{Math.round(data.spent).toLocaleString('ru')} / ₽{Math.round(data.limit).toLocaleString('ru')}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <span style={{ fontSize: 15, fontWeight: 500 }}>{data.category.emoji} {data.category.name}</span>
+        <span style={{ fontSize: 13, color: barColor, fontWeight: 600 }}>
+          ₽{fmt(data.spent)} / ₽{fmt(data.limit)}
         </span>
       </div>
-      <div style={{ background: 'rgba(128,128,128,0.2)', borderRadius: 4, height: 8 }}>
+      <div style={{ background: 'rgba(128,128,128,0.15)', borderRadius: 4, height: 6 }}>
         <div style={{
           background: barColor,
           width: `${Math.min(pct * 100, 100)}%`,
-          height: 8,
+          height: 6,
           borderRadius: 4,
           transition: 'width 0.3s ease',
         }} />
       </div>
-      <div style={{ fontSize: 11, opacity: 0.5, marginTop: 4 }}>
+      <div style={{ fontSize: 12, color: 'var(--tg-theme-hint-color, #8e8e93)', marginTop: 6 }}>
         {isOver
-          ? `⚠️ Превышено на ₽${Math.round(Math.abs(data.spent - data.limit)).toLocaleString('ru')}`
-          : `Осталось ₽${Math.round(Math.max(data.remaining, 0)).toLocaleString('ru')}`}
+          ? `⚠ Превышено на ₽${fmt(Math.abs(data.spent - data.limit))}`
+          : `Осталось ₽${fmt(Math.max(data.remaining, 0))}`}
       </div>
     </div>
   )

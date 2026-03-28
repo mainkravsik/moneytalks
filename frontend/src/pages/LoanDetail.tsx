@@ -1,12 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Loan, fetchPayments, fetchSchedule, fetchEarlyPayoff } from '../api/loans'
 
-const tabStyle = (active: boolean): React.CSSProperties => ({
-  flex: 1, padding: '10px 0', border: 'none', fontSize: 13, fontWeight: 'bold',
-  background: active ? '#2196F3' : 'transparent',
-  color: active ? '#fff' : 'inherit',
-  borderRadius: 8, cursor: 'pointer',
-})
+const fmt = (n: number) => Math.round(Number(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
 
 export default function LoanDetail({ loan, onBack }: { loan: Loan; onBack: () => void }) {
   const [tab, setTab] = useState<'history' | 'schedule' | 'early'>('history')
@@ -37,53 +32,76 @@ export default function LoanDetail({ loan, onBack }: { loan: Loan; onBack: () =>
     if (tab === 'early') fetchEarlyPayoff(loan.id, extra).then(setEarlyData).catch(() => {})
   }, [tab, extra, loan.id])
 
-  const fmt = (n: number) => n.toLocaleString('ru-RU', { maximumFractionDigits: 2 })
-
   return (
-    <div style={{ padding: 16 }}>
+    <div style={{ paddingBottom: 8 }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <button onClick={onBack} style={{ background: 'none', border: 'none', fontSize: 18, color: 'inherit', cursor: 'pointer' }}>←</button>
-        <h3 style={{ margin: 0 }}>💳 {loan.name}</h3>
-      </div>
+      <div style={{
+        background: 'var(--tg-theme-bg-color, #1c1c1e)',
+        padding: '14px 16px', marginBottom: 8,
+      }}>
+        <button onClick={onBack} style={{
+          background: 'none', border: 'none',
+          color: 'var(--tg-theme-button-color, #60a8eb)',
+          fontSize: 15, padding: 0, marginBottom: 10, cursor: 'pointer',
+        }}>
+          ← Назад
+        </button>
+        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 10 }}>💳 {loan.name}</div>
 
-      {/* Summary card */}
-      <div style={{ background: 'rgba(128,128,128,0.1)', borderRadius: 10, padding: 12, marginBottom: 16 }}>
-        <div style={{ fontSize: 14 }}>Остаток: <b>₽{fmt(loan.remaining_amount)}</b></div>
-        <div style={{ fontSize: 13, opacity: 0.7 }}>
-          {loan.bank} · {loan.rate_periods?.length > 0 ? 'перем. ставка' : `${loan.interest_rate}%`} · ₽{fmt(loan.monthly_payment)}/мес
-        </div>
-        {loan.rate_periods?.length > 0 && (
-          <div style={{ fontSize: 12, opacity: 0.6, marginTop: 4 }}>
-            {loan.rate_periods.map((rp, i) => (
-              <span key={i}>{i > 0 ? ' → ' : ''}{rp.rate}%{rp.end_date ? ` (до ${rp.end_date})` : ''}</span>
-            ))}
+        {/* Summary */}
+        <div style={{ background: 'var(--tg-theme-secondary-bg-color, #2c2c2e)', borderRadius: 12, padding: 12 }}>
+          <div style={{ fontSize: 15 }}>Остаток: <b>₽{fmt(Number(loan.remaining_amount))}</b></div>
+          <div style={{ fontSize: 13, color: 'var(--tg-theme-hint-color, #8e8e93)', marginTop: 2 }}>
+            {loan.bank} · {loan.rate_periods?.length > 0 ? 'перем. ставка' : `${loan.interest_rate}%`} · ₽{fmt(Number(loan.monthly_payment))}/мес
           </div>
-        )}
-        <div style={{ fontSize: 12, opacity: 0.5 }}>
-          Следующий платёж: {loan.next_payment_date}
+          {loan.rate_periods?.length > 0 && (
+            <div style={{ fontSize: 12, color: 'var(--tg-theme-hint-color, #8e8e93)', marginTop: 4 }}>
+              {loan.rate_periods.map((rp, i) => (
+                <span key={i}>{i > 0 ? ' → ' : ''}{rp.rate}%{rp.end_date ? ` (до ${rp.end_date})` : ''}</span>
+              ))}
+            </div>
+          )}
+          <div style={{ fontSize: 12, color: 'var(--tg-theme-hint-color, #8e8e93)', marginTop: 2 }}>
+            Следующий платёж: {loan.next_payment_date}
+          </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
-        <button style={tabStyle(tab === 'history')} onClick={() => setTab('history')}>История</button>
-        <button style={tabStyle(tab === 'schedule')} onClick={() => setTab('schedule')}>График</button>
-        <button style={tabStyle(tab === 'early')} onClick={() => setTab('early')}>Досрочное</button>
+      <div style={{ padding: '0 16px', marginBottom: 8 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {([
+            { key: 'history' as const, label: 'История' },
+            { key: 'schedule' as const, label: 'График' },
+            { key: 'early' as const, label: 'Досрочное' },
+          ]).map(t => (
+            <button key={t.key} onClick={() => setTab(t.key)} style={{
+              flex: 1, padding: '10px 0', borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 600,
+              background: tab === t.key ? 'var(--tg-theme-button-color, #60a8eb)' : 'var(--tg-theme-secondary-bg-color, #2c2c2e)',
+              color: tab === t.key ? 'var(--tg-theme-button-text-color, #fff)' : 'var(--tg-theme-text-color, #fff)',
+            }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* History Tab */}
       {tab === 'history' && (
         payments.length === 0 ? (
-          <div style={{ opacity: 0.5, textAlign: 'center', marginTop: 20 }}>Платежей пока нет</div>
+          <div style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--tg-theme-hint-color, #8e8e93)' }}>Платежей пока нет</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {payments.map(p => (
-              <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(128,128,128,0.2)', borderRadius: 8, padding: 10 }}>
-                <span style={{ fontSize: 13, opacity: 0.7 }}>
+          <div style={{ background: 'var(--tg-theme-bg-color, #1c1c1e)' }}>
+            {payments.map((p, i) => (
+              <div key={p.id} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '12px 16px',
+                borderBottom: i < payments.length - 1 ? '0.5px solid rgba(128,128,128,0.12)' : 'none',
+              }}>
+                <span style={{ fontSize: 14, color: 'var(--tg-theme-hint-color, #8e8e93)' }}>
                   {new Date(p.paid_at).toLocaleDateString('ru-RU')}
                 </span>
-                <span style={{ fontWeight: 'bold' }}>₽{fmt(p.amount)}</span>
+                <span style={{ fontWeight: 600, fontSize: 15 }}>₽{fmt(Number(p.amount))}</span>
               </div>
             ))}
           </div>
@@ -93,35 +111,39 @@ export default function LoanDetail({ loan, onBack }: { loan: Loan; onBack: () =>
       {/* Schedule Tab */}
       {tab === 'schedule' && schedule && (
         <>
-          <div style={{ background: 'rgba(128,128,128,0.1)', borderRadius: 10, padding: 12, marginBottom: 16 }}>
-            <div>Осталось: <b>{schedule.total_months} мес.</b></div>
-            <div>Переплата: <b style={{ color: '#F44336' }}>₽{fmt(schedule.total_interest)}</b></div>
-            <div style={{ fontSize: 12, opacity: 0.6 }}>Всего заплатите: ₽{fmt(schedule.total_paid)}</div>
+          <div style={{ padding: '0 16px', marginBottom: 8 }}>
+            <div style={{ background: 'var(--tg-theme-bg-color, #1c1c1e)', borderRadius: 12, padding: 14 }}>
+              <div style={{ fontSize: 15 }}>Осталось: <b>{schedule.total_months} мес.</b></div>
+              <div style={{ fontSize: 14 }}>Переплата: <b style={{ color: '#F44336' }}>₽{fmt(Number(schedule.total_interest))}</b></div>
+              <div style={{ fontSize: 13, color: 'var(--tg-theme-hint-color, #8e8e93)', marginTop: 2 }}>Всего заплатите: ₽{fmt(Number(schedule.total_paid))}</div>
+            </div>
           </div>
 
-          <div style={{ fontSize: 12, overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ opacity: 0.6 }}>
-                  <th style={{ textAlign: 'left', padding: 4 }}>Дата</th>
-                  <th style={{ textAlign: 'right', padding: 4 }}>Платёж</th>
-                  <th style={{ textAlign: 'right', padding: 4 }}>Долг</th>
-                  <th style={{ textAlign: 'right', padding: 4 }}>%</th>
-                  <th style={{ textAlign: 'right', padding: 4 }}>Остаток</th>
-                </tr>
-              </thead>
-              <tbody>
-                {schedule.schedule.map(s => (
-                  <tr key={s.month}>
-                    <td style={{ padding: 4, fontSize: 11 }}>{s.date}</td>
-                    <td style={{ textAlign: 'right', padding: 4 }}>₽{fmt(s.payment)}</td>
-                    <td style={{ textAlign: 'right', padding: 4 }}>₽{fmt(s.principal)}</td>
-                    <td style={{ textAlign: 'right', padding: 4, color: '#F44336' }}>₽{fmt(s.interest)}</td>
-                    <td style={{ textAlign: 'right', padding: 4 }}>₽{fmt(s.balance)}</td>
+          <div style={{ background: 'var(--tg-theme-bg-color, #1c1c1e)', padding: '14px 16px' }}>
+            <div style={{ fontSize: 12, overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ color: 'var(--tg-theme-hint-color, #8e8e93)' }}>
+                    <th style={{ textAlign: 'left', padding: '6px 4px', borderBottom: '0.5px solid rgba(128,128,128,0.12)' }}>Дата</th>
+                    <th style={{ textAlign: 'right', padding: '6px 4px', borderBottom: '0.5px solid rgba(128,128,128,0.12)' }}>Платёж</th>
+                    <th style={{ textAlign: 'right', padding: '6px 4px', borderBottom: '0.5px solid rgba(128,128,128,0.12)' }}>Долг</th>
+                    <th style={{ textAlign: 'right', padding: '6px 4px', borderBottom: '0.5px solid rgba(128,128,128,0.12)' }}>%</th>
+                    <th style={{ textAlign: 'right', padding: '6px 4px', borderBottom: '0.5px solid rgba(128,128,128,0.12)' }}>Остаток</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {schedule.schedule.map(s => (
+                    <tr key={s.month}>
+                      <td style={{ padding: '6px 4px', fontSize: 11, borderBottom: '0.5px solid rgba(128,128,128,0.08)' }}>{s.date}</td>
+                      <td style={{ textAlign: 'right', padding: '6px 4px', borderBottom: '0.5px solid rgba(128,128,128,0.08)' }}>₽{fmt(Number(s.payment))}</td>
+                      <td style={{ textAlign: 'right', padding: '6px 4px', borderBottom: '0.5px solid rgba(128,128,128,0.08)' }}>₽{fmt(Number(s.principal))}</td>
+                      <td style={{ textAlign: 'right', padding: '6px 4px', borderBottom: '0.5px solid rgba(128,128,128,0.08)', color: '#F44336' }}>₽{fmt(Number(s.interest))}</td>
+                      <td style={{ textAlign: 'right', padding: '6px 4px', borderBottom: '0.5px solid rgba(128,128,128,0.08)' }}>₽{fmt(Number(s.balance))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </>
       )}
@@ -129,52 +151,56 @@ export default function LoanDetail({ loan, onBack }: { loan: Loan; onBack: () =>
       {/* Early Payoff Tab */}
       {tab === 'early' && (
         <>
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 14, marginBottom: 8 }}>Доплачивать сверх платежа:</div>
+          <div style={{ background: 'var(--tg-theme-bg-color, #1c1c1e)', padding: '14px 16px', marginBottom: 8 }}>
+            <div style={{ fontSize: 14, marginBottom: 10 }}>Доплачивать сверх платежа:</div>
             <input
               type="range"
-              min={0} max={Math.max(50000, loan.monthly_payment * 2)} step={1000}
+              min={0} max={Math.max(50000, Number(loan.monthly_payment) * 2)} step={1000}
               value={extra}
               onChange={e => setExtra(parseInt(e.target.value))}
               style={{ width: '100%' }}
             />
-            <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: 16 }}>+₽{fmt(extra)}/мес</div>
-            <div style={{ textAlign: 'center', fontSize: 12, opacity: 0.6 }}>
-              Итого: ₽{fmt(loan.monthly_payment + extra)}/мес
+            <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 17, marginTop: 4 }}>+₽{fmt(extra)}/мес</div>
+            <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--tg-theme-hint-color, #8e8e93)' }}>
+              Итого: ₽{fmt(Number(loan.monthly_payment) + extra)}/мес
             </div>
           </div>
 
           {earlyData && (
             <>
               {/* Comparison cards */}
-              <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-                <div style={{ flex: 1, background: 'rgba(128,128,128,0.1)', borderRadius: 10, padding: 12 }}>
-                  <div style={{ fontSize: 11, opacity: 0.5, marginBottom: 4 }}>БЕЗ ДОПЛАТЫ</div>
-                  <div style={{ fontWeight: 'bold' }}>{earlyData.normal.months} мес.</div>
-                  <div style={{ fontSize: 12, color: '#F44336' }}>%: ₽{fmt(earlyData.normal.total_interest)}</div>
-                </div>
-                <div style={{ flex: 1, background: 'rgba(76,175,80,0.1)', borderRadius: 10, padding: 12 }}>
-                  <div style={{ fontSize: 11, opacity: 0.5, marginBottom: 4 }}>С ДОПЛАТОЙ</div>
-                  <div style={{ fontWeight: 'bold' }}>{earlyData.with_extra.months} мес.</div>
-                  <div style={{ fontSize: 12, color: '#4CAF50' }}>%: ₽{fmt(earlyData.with_extra.total_interest)}</div>
+              <div style={{ padding: '0 16px', marginBottom: 8 }}>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ flex: 1, background: 'var(--tg-theme-bg-color, #1c1c1e)', borderRadius: 12, padding: 12 }}>
+                    <div style={{ fontSize: 12, color: 'var(--tg-theme-hint-color, #8e8e93)', marginBottom: 4 }}>БЕЗ ДОПЛАТЫ</div>
+                    <div style={{ fontWeight: 600, fontSize: 16 }}>{earlyData.normal.months} мес.</div>
+                    <div style={{ fontSize: 13, color: '#F44336' }}>%: ₽{fmt(Number(earlyData.normal.total_interest))}</div>
+                  </div>
+                  <div style={{ flex: 1, background: 'var(--tg-theme-bg-color, #1c1c1e)', borderRadius: 12, padding: 12 }}>
+                    <div style={{ fontSize: 12, color: 'var(--tg-theme-hint-color, #8e8e93)', marginBottom: 4 }}>С ДОПЛАТОЙ</div>
+                    <div style={{ fontWeight: 600, fontSize: 16 }}>{earlyData.with_extra.months} мес.</div>
+                    <div style={{ fontSize: 13, color: '#4CAF50' }}>%: ₽{fmt(Number(earlyData.with_extra.total_interest))}</div>
+                  </div>
                 </div>
               </div>
 
               {/* Savings */}
               {earlyData.savings.months_saved > 0 && (
-                <div style={{ background: 'rgba(76,175,80,0.1)', borderRadius: 10, padding: 12, textAlign: 'center' }}>
-                  <div style={{ fontSize: 14 }}>Экономия</div>
-                  <div style={{ fontWeight: 'bold', fontSize: 18, color: '#4CAF50' }}>
-                    ₽{fmt(earlyData.savings.interest_saved)}
-                  </div>
-                  <div style={{ fontSize: 12, opacity: 0.7 }}>
-                    Закроете на {earlyData.savings.months_saved} мес. раньше
+                <div style={{ padding: '0 16px' }}>
+                  <div style={{ background: 'rgba(76,175,80,0.1)', borderRadius: 12, padding: 14, textAlign: 'center' }}>
+                    <div style={{ fontSize: 14 }}>Экономия</div>
+                    <div style={{ fontWeight: 700, fontSize: 20, color: '#4CAF50' }}>
+                      ₽{fmt(Number(earlyData.savings.interest_saved))}
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--tg-theme-hint-color, #8e8e93)' }}>
+                      Закроете на {earlyData.savings.months_saved} мес. раньше
+                    </div>
                   </div>
                 </div>
               )}
 
               {extra === 0 && (
-                <div style={{ opacity: 0.5, textAlign: 'center', marginTop: 12, fontSize: 13 }}>
+                <div style={{ textAlign: 'center', padding: '16px', color: 'var(--tg-theme-hint-color, #8e8e93)', fontSize: 13 }}>
                   Двигайте слайдер, чтобы увидеть экономию
                 </div>
               )}
