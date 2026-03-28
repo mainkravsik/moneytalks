@@ -2,7 +2,7 @@ services:
   app:
     build: ./app
     env_file: .env
-    depends_on: [postgres, redis]
+    depends_on: [postgres]
     restart: unless-stopped
     networks: [internal]
 
@@ -11,10 +11,6 @@ services:
     env_file: .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks: [internal]
-
-  redis:
-    image: redis:7-alpine
     networks: [internal]
 
   nginx:

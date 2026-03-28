@@ -1,7 +1,7 @@
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
-from aiogram.fsm.storage.redis import RedisStorage
+from aiogram.fsm.storage.memory import MemoryStorage
 from app.config import get_settings
 from app.bot.middlewares.auth import WhitelistMiddleware
 from app.bot.handlers.start import router as start_router
@@ -18,7 +18,7 @@ def create_bot() -> Bot:
 
 
 def create_dispatcher() -> Dispatcher:
-    storage = RedisStorage.from_url(settings.redis_url)
+    storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
     dp.message.middleware(WhitelistMiddleware(settings.allowed_user_ids))
     dp.callback_query.middleware(WhitelistMiddleware(settings.allowed_user_ids))
