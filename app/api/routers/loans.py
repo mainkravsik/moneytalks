@@ -134,6 +134,134 @@ async def delete_loan(loan_id: int, db: AsyncSession = Depends(get_db), _u: dict
     await db.commit()
 
 
+# --- Loan Detail Endpoints ---
+
+
+@router.get("/{loan_id}/payments")
+async def get_loan_payments(
+    loan_id: int,
+    db: AsyncSession = Depends(get_db),
+    _u: dict = Depends(get_tg_user),
+):
+    result = await db.execute(select(Loan).where(Loan.id == loan_id))
+    loan = result.scalar_one_or_none()
+    if not loan:
+        raise HTTPException(404, "Loan not found")
+
+    payments_result = await db.execute(
+        select(LoanPayment).where(LoanPayment.loan_id == loan_id)
+        .order_by(LoanPayment.paid_at.desc())
+    )
+    payments = payments_result.scalars().all()
+    return [
+        {
+            "id": p.id,
+            "amount": float(p.amount),
+            "paid_at": p.paid_at.isoformat() if p.paid_at else None,
+        }
+        for p in payments
+    ]
+
+
+@router.get("/{loan_id}/schedule")
+async def get_loan_schedule(
+    loan_id: int,
+    db: AsyncSession = Depends(get_db),
+    _u: dict = Depends(get_tg_user),
+):
+    result = await db.execute(select(Loan).where(Loan.id == loan_id, Loan.is_active == True))
+    loan = result.scalar_one_or_none()
+    if not loan:
+        raise HTTPException(404, "Loan not found")
+
+    balance = float(loan.remaining_amount)
+    rate = float(loan.interest_rate) / 100 / 12
+    pmt = float(loan.monthly_payment)
+    next_date = loan.next_payment_date
+
+    schedule = []
+    total_interest = 0.0
+    month = 0
+
+    while balance > 0.01 and month < 600:
+        interest = balance * rate
+        principal = min(pmt - interest, balance)
+        if principal <= 0:
+            break
+        actual_payment = interest + principal
+        balance -= principal
+        total_interest += interest
+        month += 1
+
+        schedule.append({
+            "month": month,
+            "date": str(next_date + relativedelta(months=month - 1)),
+            "payment": round(actual_payment, 2),
+            "principal": round(principal, 2),
+            "interest": round(interest, 2),
+            "balance": round(max(balance, 0), 2),
+        })
+
+    return {
+        "schedule": schedule,
+        "total_months": month,
+        "total_interest": round(total_interest, 2),
+        "total_paid": round(sum(s["payment"] for s in schedule), 2),
+    }
+
+
+@router.get("/{loan_id}/early-payoff")
+async def get_early_payoff(
+    loan_id: int,
+    extra: float = 0,
+    db: AsyncSession = Depends(get_db),
+    _u: dict = Depends(get_tg_user),
+):
+    result = await db.execute(select(Loan).where(Loan.id == loan_id, Loan.is_active == True))
+    loan = result.scalar_one_or_none()
+    if not loan:
+        raise HTTPException(404, "Loan not found")
+
+    balance = float(loan.remaining_amount)
+    rate = float(loan.interest_rate) / 100 / 12
+    pmt = float(loan.monthly_payment)
+
+    def simulate(monthly: float):
+        bal = balance
+        total_int = 0.0
+        total_pd = 0.0
+        m = 0
+        while bal > 0.01 and m < 600:
+            interest = bal * rate
+            actual = min(monthly, bal + interest)
+            bal = bal + interest - actual
+            total_int += interest
+            total_pd += actual
+            m += 1
+        return m, round(total_int, 2), round(total_pd, 2)
+
+    months_normal, interest_normal, paid_normal = simulate(pmt)
+    months_extra, interest_extra, paid_extra = simulate(pmt + extra)
+
+    return {
+        "normal": {
+            "months": months_normal,
+            "total_interest": interest_normal,
+            "total_paid": paid_normal,
+        },
+        "with_extra": {
+            "months": months_extra,
+            "total_interest": interest_extra,
+            "total_paid": paid_extra,
+            "extra_per_month": extra,
+        },
+        "savings": {
+            "months_saved": months_normal - months_extra,
+            "interest_saved": round(interest_normal - interest_extra, 2),
+        },
+    }
+
+
 # --- Card Charge Endpoints ---
 
 def _charge_to_out(charge: CardCharge) -> CardChargeOut:
