@@ -17,8 +17,9 @@ class LoanCreate(BaseModel):
     payment_type: str = "annuity"
     # card-only fields
     credit_limit: Decimal | None = None
-    grace_days: int | None = None
-    min_payment: Decimal | None = None
+    grace_period_months: int | None = 3
+    min_payment_pct: Decimal | None = Decimal("0.03")
+    min_payment_floor: Decimal | None = Decimal("150")
 
 
 class LoanUpdate(BaseModel):
@@ -28,8 +29,9 @@ class LoanUpdate(BaseModel):
     monthly_payment: Decimal | None = None
     next_payment_date: date | None = None
     credit_limit: Decimal | None = None
-    grace_days: int | None = None
-    min_payment: Decimal | None = None
+    grace_period_months: int | None = None
+    min_payment_pct: Decimal | None = None
+    min_payment_floor: Decimal | None = None
     remaining_amount: Decimal | None = None
 
 
@@ -51,8 +53,9 @@ class LoanOut(BaseModel):
     start_date: date | None
     is_active: bool
     credit_limit: Decimal | None
-    grace_days: int | None
-    min_payment: Decimal | None
+    grace_period_months: int | None
+    min_payment_pct: Decimal | None
+    min_payment_floor: Decimal | None
 
     model_config = {"from_attributes": True}
 

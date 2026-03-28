@@ -94,8 +94,9 @@ class Loan(Base):
     payment_type: Mapped[str] = mapped_column(String(20), default="annuity")  # annuity | differentiated
     # Card-only fields
     credit_limit: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
-    grace_days: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 0 = grace period expired
-    min_payment: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    grace_period_months: Mapped[int | None] = mapped_column(Integer, nullable=True, default=3)
+    min_payment_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True, default=Decimal("0.03"))
+    min_payment_floor: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True, default=Decimal("150"))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -107,3 +108,16 @@ class LoanPayment(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     paid_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CardCharge(Base):
+    __tablename__ = "card_charges"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    loan_id: Mapped[int] = mapped_column(ForeignKey("loans.id"))
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    description: Mapped[str] = mapped_column(String(200))
+    charge_type: Mapped[str] = mapped_column(String(20))  # purchase | transfer | cash
+    charge_date: Mapped[date] = mapped_column(Date)
+    grace_deadline: Mapped[date | None] = mapped_column(Date, nullable=True)
+    is_paid: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

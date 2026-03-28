@@ -1,7 +1,7 @@
 import pytest
 from app.db.models import (
     User, BudgetPeriod, Category, BudgetLimit,
-    Transaction, PiggyBank, PiggyContribution, Loan, LoanPayment
+    Transaction, PiggyBank, PiggyContribution, Loan, LoanPayment, CardCharge
 )
 
 
@@ -16,3 +16,4 @@ def test_all_models_importable():
     assert PiggyContribution.__tablename__ == "piggy_contributions"
     assert Loan.__tablename__ == "loans"
     assert LoanPayment.__tablename__ == "loan_payments"
+    assert CardCharge.__tablename__ == "card_charges"
