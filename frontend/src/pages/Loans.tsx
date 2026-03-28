@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { fetchLoans, Loan, recordPayment, createLoan } from '../api/loans'
+import { useEffect, useState, useRef } from 'react'
+import { fetchLoans, Loan, recordPayment, createLoan, updateLoan, deleteLoan } from '../api/loans'
 import ExtraPaymentSlider from '../components/ExtraPaymentSlider'
 
 const inputStyle: React.CSSProperties = {
@@ -10,56 +10,100 @@ const inputStyle: React.CSSProperties = {
 }
 const labelStyle: React.CSSProperties = { fontSize: 12, opacity: 0.5, marginBottom: 4 }
 
-function AddLoanModal({ onClose, onSave }: { onClose: () => void; onSave: () => void }) {
-  const [type, setType] = useState<'loan' | 'card'>('loan')
-  const [name, setName] = useState('')
-  const [bank, setBank] = useState('')
+function ConfirmDeleteModal({ loan, onClose, onConfirm }: { loan: Loan; onClose: () => void; onConfirm: () => void }) {
+  const [deleting, setDeleting] = useState(false)
+
+  const handleConfirm = async () => {
+    setDeleting(true)
+    await onConfirm()
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 110 }}>
+      <div style={{ background: 'var(--tg-theme-bg-color, #1c1c1e)', borderRadius: 16, padding: 24, width: '85%', maxWidth: 320, textAlign: 'center' }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>🗑️</div>
+        <div style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>Удалить {loan.loan_type === 'card' ? 'карту' : 'кредит'}?</div>
+        <div style={{ fontSize: 14, opacity: 0.6, marginBottom: 20 }}>
+          «{loan.name}» будет удалён. Это действие нельзя отменить.
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: 12, borderRadius: 8, border: '1px solid rgba(128,128,128,0.3)', background: 'transparent', color: 'inherit', fontSize: 14 }}>
+            Отмена
+          </button>
+          <button onClick={handleConfirm} disabled={deleting} style={{ flex: 1, padding: 12, borderRadius: 8, border: 'none', background: '#F44336', color: '#fff', fontSize: 14, fontWeight: 'bold' }}>
+            {deleting ? '...' : 'Удалить'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function LoanModal({ onClose, onSave, editLoan }: { onClose: () => void; onSave: () => void; editLoan?: Loan }) {
+  const isEdit = !!editLoan
+  const [type, setType] = useState<'loan' | 'card'>(editLoan?.loan_type ?? 'loan')
+  const [name, setName] = useState(editLoan?.name ?? '')
+  const [bank, setBank] = useState(editLoan?.bank ?? '')
   // loan fields
-  const [original, setOriginal] = useState('')
-  const [remaining, setRemaining] = useState('')
-  const [rate, setRate] = useState('')
-  const [payment, setPayment] = useState('')
-  const [nextDate, setNextDate] = useState('')
+  const [original, setOriginal] = useState(editLoan?.original_amount?.toString() ?? '')
+  const [remaining, setRemaining] = useState(editLoan?.remaining_amount?.toString() ?? '')
+  const [rate, setRate] = useState(editLoan?.interest_rate?.toString() ?? '')
+  const [payment, setPayment] = useState(editLoan?.monthly_payment?.toString() ?? '')
+  const [nextDate, setNextDate] = useState(editLoan?.next_payment_date ?? '')
   // card fields
-  const [limit, setLimit] = useState('')
-  const [debt, setDebt] = useState('')
-  const [cardRate, setCardRate] = useState('')
-  const [graceDays, setGraceDays] = useState('')
-  const [minPayment, setMinPayment] = useState('')
-  const [cardNextDate, setCardNextDate] = useState('')
+  const [limit, setLimit] = useState(editLoan?.credit_limit?.toString() ?? '')
+  const [debt, setDebt] = useState(editLoan?.remaining_amount?.toString() ?? '')
+  const [cardRate, setCardRate] = useState(editLoan?.interest_rate?.toString() ?? '')
+  const [graceDays, setGraceDays] = useState(editLoan?.grace_days?.toString() ?? '')
+  const [minPayment, setMinPayment] = useState(editLoan?.min_payment?.toString() ?? '')
+  const [cardNextDate, setCardNextDate] = useState(editLoan?.next_payment_date ?? '')
   const [saving, setSaving] = useState(false)
 
   const handleSave = async () => {
     setSaving(true)
     if (type === 'loan') {
-      await createLoan({
-        loan_type: 'loan',
+      const data: any = {
         name: name.trim(),
         bank: bank.trim() || null,
-        original_amount: parseFloat(original),
         remaining_amount: parseFloat(remaining),
         interest_rate: parseFloat(rate),
         monthly_payment: parseFloat(payment),
         next_payment_date: nextDate,
-        start_date: nextDate,
-      })
+      }
+      if (isEdit) {
+        await updateLoan(editLoan!.id, data)
+      } else {
+        await createLoan({
+          ...data,
+          loan_type: 'loan',
+          original_amount: parseFloat(original),
+          start_date: nextDate,
+        })
+      }
     } else {
       const debtVal = parseFloat(debt) || 0
       const graceDaysVal = parseInt(graceDays) || 0
-      await createLoan({
-        loan_type: 'card',
+      const data: any = {
         name: name.trim(),
         bank: bank.trim() || null,
-        credit_limit: parseFloat(limit),
         remaining_amount: debtVal,
         interest_rate: parseFloat(cardRate) || 0,
         monthly_payment: parseFloat(minPayment) || 0,
+        next_payment_date: cardNextDate,
+        credit_limit: parseFloat(limit),
         min_payment: parseFloat(minPayment) || null,
         grace_days: graceDaysVal,
-        next_payment_date: cardNextDate,
-        original_amount: null,
-        start_date: null,
-      })
+      }
+      if (isEdit) {
+        await updateLoan(editLoan!.id, data)
+      } else {
+        await createLoan({
+          ...data,
+          loan_type: 'card',
+          original_amount: null,
+          start_date: null,
+        })
+      }
     }
     onSave()
     onClose()
@@ -68,27 +112,33 @@ function AddLoanModal({ onClose, onSave }: { onClose: () => void; onSave: () => 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', zIndex: 100 }}>
       <div style={{ background: 'var(--tg-theme-bg-color, #1c1c1e)', width: '100%', borderRadius: '16px 16px 0 0', padding: 20, maxHeight: '90vh', overflowY: 'auto' }}>
-        <div style={{ fontWeight: 'bold', marginBottom: 14, fontSize: 16 }}>Новый долг</div>
-
-        {/* Type switcher */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          {(['loan', 'card'] as const).map(t => (
-            <button key={t} onClick={() => setType(t)} style={{
-              flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 'bold',
-              background: type === t ? '#2196F3' : 'rgba(128,128,128,0.15)',
-              color: type === t ? '#fff' : 'inherit',
-            }}>
-              {t === 'loan' ? '💳 Кредит' : '🃏 Кредитная карта'}
-            </button>
-          ))}
+        <div style={{ fontWeight: 'bold', marginBottom: 14, fontSize: 16 }}>
+          {isEdit ? 'Редактировать' : 'Новый долг'}
         </div>
+
+        {/* Type switcher — only for new */}
+        {!isEdit && (
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            {(['loan', 'card'] as const).map(t => (
+              <button key={t} onClick={() => setType(t)} style={{
+                flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 'bold',
+                background: type === t ? '#2196F3' : 'rgba(128,128,128,0.15)',
+                color: type === t ? '#fff' : 'inherit',
+              }}>
+                {t === 'loan' ? '💳 Кредит' : '🃏 Кредитная карта'}
+              </button>
+            ))}
+          </div>
+        )}
 
         <input style={inputStyle} placeholder="Название *" value={name} onChange={e => setName(e.target.value)} autoFocus />
         <input style={inputStyle} placeholder="Банк" value={bank} onChange={e => setBank(e.target.value)} />
 
         {type === 'loan' ? (
           <>
-            <input style={inputStyle} type="number" placeholder="Исходная сумма *" value={original} onChange={e => setOriginal(e.target.value)} />
+            {!isEdit && (
+              <input style={inputStyle} type="number" placeholder="Исходная сумма *" value={original} onChange={e => setOriginal(e.target.value)} />
+            )}
             <input style={inputStyle} type="number" placeholder="Остаток долга *" value={remaining} onChange={e => setRemaining(e.target.value)} />
             <input style={inputStyle} type="number" placeholder="Ставка % годовых *" value={rate} onChange={e => setRate(e.target.value)} />
             <input style={inputStyle} type="number" placeholder="Ежемесячный платёж *" value={payment} onChange={e => setPayment(e.target.value)} />
@@ -112,7 +162,7 @@ function AddLoanModal({ onClose, onSave }: { onClose: () => void; onSave: () => 
             Отмена
           </button>
           <button onClick={handleSave} disabled={saving} style={{ flex: 2, padding: 12, borderRadius: 8, border: 'none', background: '#2196F3', color: '#fff', fontSize: 14, fontWeight: 'bold' }}>
-            {saving ? '...' : 'Добавить'}
+            {saving ? '...' : isEdit ? 'Сохранить' : 'Добавить'}
           </button>
         </div>
       </div>
@@ -120,7 +170,65 @@ function AddLoanModal({ onClose, onSave }: { onClose: () => void; onSave: () => 
   )
 }
 
-function LoanCard({ loan, onPayment }: { loan: Loan; onPayment: () => void }) {
+function CardMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button onClick={() => setOpen(!open)} style={{
+        background: 'none', border: 'none', fontSize: 18, cursor: 'pointer',
+        color: 'inherit', opacity: 0.5, padding: '0 4px', lineHeight: 1,
+      }}>
+        ⋮
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', right: 0, top: '100%', zIndex: 50,
+          background: 'var(--tg-theme-secondary-bg-color, #2c2c2e)', borderRadius: 10,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.3)', overflow: 'hidden', minWidth: 160,
+        }}>
+          <button onClick={() => { setOpen(false); onEdit() }} style={{
+            display: 'block', width: '100%', padding: '12px 16px', border: 'none',
+            background: 'transparent', color: 'inherit', fontSize: 14, textAlign: 'left',
+            cursor: 'pointer',
+          }}>
+            ✏️ Редактировать
+          </button>
+          <div style={{ height: 1, background: 'rgba(128,128,128,0.2)' }} />
+          <button onClick={() => { setOpen(false); onDelete() }} style={{
+            display: 'block', width: '100%', padding: '12px 16px', border: 'none',
+            background: 'transparent', color: '#F44336', fontSize: 14, textAlign: 'left',
+            cursor: 'pointer',
+          }}>
+            🗑️ Удалить
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function LoanCard({ loan, onPayment, onEdit, onDelete }: { loan: Loan; onPayment: () => void; onEdit: () => void; onDelete: () => void }) {
+  const menuHeader = (icon: string) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+      <span style={{ fontWeight: 'bold' }}>{icon} {loan.name}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span style={{ fontSize: 12, opacity: 0.6 }}>{loan.bank || ''}</span>
+        <CardMenu onEdit={onEdit} onDelete={onDelete} />
+      </div>
+    </div>
+  )
+
   if (loan.loan_type === 'card') {
     const limit = loan.credit_limit ?? 0
     const debt = loan.remaining_amount ?? 0
@@ -130,10 +238,7 @@ function LoanCard({ loan, onPayment }: { loan: Loan; onPayment: () => void }) {
 
     return (
       <div style={{ border: `1px solid ${isOverdue ? 'rgba(244,67,54,0.4)' : 'rgba(128,128,128,0.2)'}`, borderRadius: 10, padding: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-          <span style={{ fontWeight: 'bold' }}>🃏 {loan.name}</span>
-          <span style={{ fontSize: 12, opacity: 0.6 }}>{loan.bank || ''}</span>
-        </div>
+        {menuHeader('🃏')}
         {isOverdue && (
           <div style={{ fontSize: 12, color: '#F44336', marginBottom: 6 }}>⚠️ Льготный период истёк · {loan.interest_rate}% годовых</div>
         )}
@@ -157,7 +262,6 @@ function LoanCard({ loan, onPayment }: { loan: Loan; onPayment: () => void }) {
   // Regular loan
   const orig = loan.original_amount ?? loan.remaining_amount
   const pct = orig > 0 ? 1 - loan.remaining_amount / orig : 0
-  // Estimate months remaining
   const monthlyRate = parseFloat(String(loan.interest_rate)) / 100 / 12
   const pmt = parseFloat(String(loan.monthly_payment))
   const bal = parseFloat(String(loan.remaining_amount))
@@ -170,10 +274,7 @@ function LoanCard({ loan, onPayment }: { loan: Loan; onPayment: () => void }) {
 
   return (
     <div style={{ border: '1px solid rgba(128,128,128,0.2)', borderRadius: 10, padding: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-        <span style={{ fontWeight: 'bold' }}>💳 {loan.name}</span>
-        <span style={{ fontSize: 12, opacity: 0.6 }}>{loan.bank || ''}</span>
-      </div>
+      {menuHeader('💳')}
       <div style={{ fontSize: 13, marginBottom: 6 }}>
         Остаток: <b>₽{loan.remaining_amount.toLocaleString('ru')}</b> · {loan.interest_rate}% · ещё ~{monthsLeft} мес.
       </div>
@@ -193,7 +294,9 @@ function LoanCard({ loan, onPayment }: { loan: Loan; onPayment: () => void }) {
 
 export default function LoansPage() {
   const [loans, setLoans] = useState<Loan[]>([])
-  const [showAdd, setShowAdd] = useState(false)
+  const [showModal, setShowModal] = useState(false)
+  const [editingLoan, setEditingLoan] = useState<Loan | undefined>()
+  const [deletingLoan, setDeletingLoan] = useState<Loan | undefined>()
   const load = () => fetchLoans().then(setLoans)
   useEffect(() => { load() }, [])
 
@@ -207,6 +310,18 @@ export default function LoansPage() {
     load()
   }
 
+  const handleEdit = (loan: Loan) => {
+    setEditingLoan(loan)
+    setShowModal(true)
+  }
+
+  const handleDelete = async () => {
+    if (!deletingLoan) return
+    await deleteLoan(deletingLoan.id)
+    setDeletingLoan(undefined)
+    load()
+  }
+
   const regularLoans = loans.filter(l => l.loan_type === 'loan')
   const cards = loans.filter(l => l.loan_type === 'card')
 
@@ -214,7 +329,7 @@ export default function LoansPage() {
     <div style={{ padding: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <h3 style={{ margin: 0 }}>💳 Кредиты и карты</h3>
-        <button onClick={() => setShowAdd(true)} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#2196F3', color: '#fff', fontSize: 13, fontWeight: 'bold' }}>
+        <button onClick={() => { setEditingLoan(undefined); setShowModal(true) }} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#2196F3', color: '#fff', fontSize: 13, fontWeight: 'bold' }}>
           + Добавить
         </button>
       </div>
@@ -223,7 +338,13 @@ export default function LoansPage() {
         <>
           <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 8 }}>КРЕДИТНЫЕ КАРТЫ</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-            {cards.map(loan => <LoanCard key={loan.id} loan={loan} onPayment={() => handlePayment(loan)} />)}
+            {cards.map(loan => (
+              <LoanCard key={loan.id} loan={loan}
+                onPayment={() => handlePayment(loan)}
+                onEdit={() => handleEdit(loan)}
+                onDelete={() => setDeletingLoan(loan)}
+              />
+            ))}
           </div>
         </>
       )}
@@ -232,7 +353,13 @@ export default function LoansPage() {
         <>
           <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 8 }}>КРЕДИТЫ</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-            {regularLoans.map(loan => <LoanCard key={loan.id} loan={loan} onPayment={() => handlePayment(loan)} />)}
+            {regularLoans.map(loan => (
+              <LoanCard key={loan.id} loan={loan}
+                onPayment={() => handlePayment(loan)}
+                onEdit={() => handleEdit(loan)}
+                onDelete={() => setDeletingLoan(loan)}
+              />
+            ))}
           </div>
         </>
       )}
@@ -242,7 +369,22 @@ export default function LoansPage() {
       )}
 
       {regularLoans.length > 0 && <ExtraPaymentSlider />}
-      {showAdd && <AddLoanModal onClose={() => setShowAdd(false)} onSave={load} />}
+
+      {showModal && (
+        <LoanModal
+          editLoan={editingLoan}
+          onClose={() => { setShowModal(false); setEditingLoan(undefined) }}
+          onSave={load}
+        />
+      )}
+
+      {deletingLoan && (
+        <ConfirmDeleteModal
+          loan={deletingLoan}
+          onClose={() => setDeletingLoan(undefined)}
+          onConfirm={handleDelete}
+        />
+      )}
     </div>
   )
 }

@@ -34,3 +34,4 @@ export const recordPayment = (id: number, amount: number) =>
   api.post<Loan>(`/loans/${id}/payment`, { amount }).then(r => r.data)
 export const createLoan = (data: Partial<Loan>) => api.post<Loan>('/loans', data).then(r => r.data)
 export const updateLoan = (id: number, data: Partial<Loan>) => api.patch<Loan>(`/loans/${id}`, data).then(r => r.data)
+export const deleteLoan = (id: number) => api.delete(`/loans/${id}`).then(r => r.data)
