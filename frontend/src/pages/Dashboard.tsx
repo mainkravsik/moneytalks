@@ -21,6 +21,7 @@ export default function Dashboard() {
   if (!data) return <div style={{ padding: 16 }}>Нет данных</div>
 
   const top3 = data.categories.slice(0, 3)
+  const fmt = (n: number) => Math.round(n).toLocaleString('ru-RU')
 
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -35,13 +36,17 @@ export default function Dashboard() {
         </div>
       )}
       <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-        <div style={{ flex: 1, background: 'rgba(128,128,128,0.1)', borderRadius: 8, padding: 10, textAlign: 'center', fontSize: 12 }}>
-          <div>🐷 Копилки</div>
-          <div style={{ fontWeight: 'bold', marginTop: 4 }}>₽{piggyTotal.toLocaleString('ru')}</div>
+        <div style={{ flex: 1, background: 'rgba(128,128,128,0.1)', borderRadius: 10, padding: 12, textAlign: 'center' }}>
+          <div style={{ fontSize: 20, marginBottom: 4 }}>🐷</div>
+          <div style={{ fontSize: 11, opacity: 0.6 }}>Копилки</div>
+          <div style={{ fontWeight: 'bold', fontSize: 15, marginTop: 2 }}>₽{fmt(piggyTotal)}</div>
         </div>
-        <div style={{ flex: 1, background: 'rgba(128,128,128,0.1)', borderRadius: 8, padding: 10, textAlign: 'center', fontSize: 12 }}>
-          <div>💳 Долг</div>
-          <div style={{ fontWeight: 'bold', marginTop: 4 }}>₽{loanTotal.toLocaleString('ru')}</div>
+        <div style={{ flex: 1, background: 'rgba(128,128,128,0.1)', borderRadius: 10, padding: 12, textAlign: 'center' }}>
+          <div style={{ fontSize: 20, marginBottom: 4 }}>💳</div>
+          <div style={{ fontSize: 11, opacity: 0.6 }}>Долг</div>
+          <div style={{ fontWeight: 'bold', fontSize: 15, marginTop: 2, color: loanTotal > 0 ? '#F44336' : '#4CAF50' }}>
+            ₽{fmt(loanTotal)}
+          </div>
         </div>
       </div>
     </div>
