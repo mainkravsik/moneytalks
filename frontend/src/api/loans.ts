@@ -13,8 +13,9 @@ export interface Loan {
   start_date: string | null
   is_active: boolean
   credit_limit: number | null
-  grace_days: number | null
-  min_payment: number | null
+  grace_period_months: number | null
+  min_payment_pct: number | null
+  min_payment_floor: number | null
 }
 
 export interface StrategyResult {

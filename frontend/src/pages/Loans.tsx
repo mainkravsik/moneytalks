@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { fetchLoans, Loan, recordPayment, createLoan, updateLoan, deleteLoan } from '../api/loans'
+import { CardSummary, fetchCardSummary, addCharge } from '../api/card'
 import ExtraPaymentSlider from '../components/ExtraPaymentSlider'
+import CardDetail from './CardDetail'
 
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '10px 12px', borderRadius: 8,
@@ -54,8 +56,9 @@ function LoanModal({ onClose, onSave, editLoan }: { onClose: () => void; onSave:
   const [limit, setLimit] = useState(editLoan?.credit_limit?.toString() ?? '')
   const [debt, setDebt] = useState(editLoan?.remaining_amount?.toString() ?? '')
   const [cardRate, setCardRate] = useState(editLoan?.interest_rate?.toString() ?? '')
-  const [graceDays, setGraceDays] = useState(editLoan?.grace_days?.toString() ?? '')
-  const [minPayment, setMinPayment] = useState(editLoan?.min_payment?.toString() ?? '')
+  const [gracePeriodMonths, setGracePeriodMonths] = useState(editLoan?.grace_period_months?.toString() ?? '')
+  const [minPaymentPct, setMinPaymentPct] = useState(editLoan?.min_payment_pct?.toString() ?? '')
+  const [minPaymentFloor, setMinPaymentFloor] = useState(editLoan?.min_payment_floor?.toString() ?? '')
   const [cardNextDate, setCardNextDate] = useState(editLoan?.next_payment_date ?? '')
   const [saving, setSaving] = useState(false)
 
@@ -82,17 +85,17 @@ function LoanModal({ onClose, onSave, editLoan }: { onClose: () => void; onSave:
       }
     } else {
       const debtVal = parseFloat(debt) || 0
-      const graceDaysVal = parseInt(graceDays) || 0
       const data: any = {
         name: name.trim(),
         bank: bank.trim() || null,
         remaining_amount: debtVal,
         interest_rate: parseFloat(cardRate) || 0,
-        monthly_payment: parseFloat(minPayment) || 0,
+        monthly_payment: 0,
         next_payment_date: cardNextDate,
         credit_limit: parseFloat(limit),
-        min_payment: parseFloat(minPayment) || null,
-        grace_days: graceDaysVal,
+        grace_period_months: parseInt(gracePeriodMonths) || null,
+        min_payment_pct: parseFloat(minPaymentPct) || null,
+        min_payment_floor: parseFloat(minPaymentFloor) || null,
       }
       if (isEdit) {
         await updateLoan(editLoan!.id, data)
@@ -149,9 +152,10 @@ function LoanModal({ onClose, onSave, editLoan }: { onClose: () => void; onSave:
           <>
             <input style={inputStyle} type="number" placeholder="Кредитный лимит *" value={limit} onChange={e => setLimit(e.target.value)} />
             <input style={inputStyle} type="number" placeholder="Текущий долг" value={debt} onChange={e => setDebt(e.target.value)} />
-            <input style={inputStyle} type="number" placeholder="Ставка % годовых (если льготный прошёл)" value={cardRate} onChange={e => setCardRate(e.target.value)} />
-            <input style={inputStyle} type="number" placeholder="Льготный период (дней, 0 = просрочен)" value={graceDays} onChange={e => setGraceDays(e.target.value)} />
-            <input style={inputStyle} type="number" placeholder="Минимальный платёж" value={minPayment} onChange={e => setMinPayment(e.target.value)} />
+            <input style={inputStyle} type="number" placeholder="Ставка % годовых" value={cardRate} onChange={e => setCardRate(e.target.value)} />
+            <input style={inputStyle} type="number" placeholder="Льготный период (месяцев)" value={gracePeriodMonths} onChange={e => setGracePeriodMonths(e.target.value)} />
+            <input style={inputStyle} type="number" placeholder="Мин. платёж (% от долга)" value={minPaymentPct} onChange={e => setMinPaymentPct(e.target.value)} />
+            <input style={inputStyle} type="number" placeholder="Мин. платёж (минимум ₽)" value={minPaymentFloor} onChange={e => setMinPaymentFloor(e.target.value)} />
             <div style={labelStyle}>Дата следующего платежа *</div>
             <input style={inputStyle} type="date" value={cardNextDate} onChange={e => setCardNextDate(e.target.value)} />
           </>
@@ -163,6 +167,66 @@ function LoanModal({ onClose, onSave, editLoan }: { onClose: () => void; onSave:
           </button>
           <button onClick={handleSave} disabled={saving} style={{ flex: 2, padding: 12, borderRadius: 8, border: 'none', background: '#2196F3', color: '#fff', fontSize: 14, fontWeight: 'bold' }}>
             {saving ? '...' : isEdit ? 'Сохранить' : 'Добавить'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AddChargeModal({ loanId, onClose, onSave }: { loanId: number; onClose: () => void; onSave: () => void }) {
+  const [chargeType, setChargeType] = useState<'purchase' | 'transfer' | 'cash'>('purchase')
+  const [amount, setAmount] = useState('')
+  const [description, setDescription] = useState('')
+  const [chargeDate, setChargeDate] = useState(new Date().toISOString().slice(0, 10))
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = async () => {
+    if (!amount) return
+    setSaving(true)
+    await addCharge(loanId, {
+      amount: parseFloat(amount),
+      description: description.trim(),
+      charge_type: chargeType,
+      charge_date: chargeDate,
+    })
+    onSave()
+    onClose()
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', zIndex: 100 }}>
+      <div style={{ background: 'var(--tg-theme-bg-color, #1c1c1e)', width: '100%', borderRadius: '16px 16px 0 0', padding: 20 }}>
+        <div style={{ fontWeight: 'bold', marginBottom: 14, fontSize: 16 }}>Новая трата</div>
+
+        {/* Type selector */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+          {([
+            { key: 'purchase' as const, label: '🛒 Покупка' },
+            { key: 'transfer' as const, label: '🔄 Перевод' },
+            { key: 'cash' as const, label: '💵 Наличные' },
+          ]).map(t => (
+            <button key={t.key} onClick={() => setChargeType(t.key)} style={{
+              flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', fontSize: 12, fontWeight: 'bold',
+              background: chargeType === t.key ? '#2196F3' : 'rgba(128,128,128,0.15)',
+              color: chargeType === t.key ? '#fff' : 'inherit',
+            }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <input style={inputStyle} type="number" placeholder="Сумма *" value={amount} onChange={e => setAmount(e.target.value)} autoFocus />
+        <input style={inputStyle} placeholder="Описание" value={description} onChange={e => setDescription(e.target.value)} />
+        <div style={labelStyle}>Дата</div>
+        <input style={inputStyle} type="date" value={chargeDate} onChange={e => setChargeDate(e.target.value)} />
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: 12, borderRadius: 8, border: '1px solid rgba(128,128,128,0.3)', background: 'transparent', color: 'inherit', fontSize: 14 }}>
+            Отмена
+          </button>
+          <button onClick={handleSave} disabled={saving || !amount} style={{ flex: 2, padding: 12, borderRadius: 8, border: 'none', background: '#2196F3', color: '#fff', fontSize: 14, fontWeight: 'bold' }}>
+            {saving ? '...' : 'Добавить'}
           </button>
         </div>
       </div>
@@ -218,48 +282,85 @@ function CardMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => vo
   )
 }
 
-function LoanCard({ loan, onPayment, onEdit, onDelete }: { loan: Loan; onPayment: () => void; onEdit: () => void; onDelete: () => void }) {
-  const menuHeader = (icon: string) => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-      <span style={{ fontWeight: 'bold' }}>{icon} {loan.name}</span>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <span style={{ fontSize: 12, opacity: 0.6 }}>{loan.bank || ''}</span>
-        <CardMenu onEdit={onEdit} onDelete={onDelete} />
+function CardLoanCard({ loan, onPayment, onEdit, onDelete, onAddCharge, onDetail }: {
+  loan: Loan; onPayment: () => void; onEdit: () => void; onDelete: () => void;
+  onAddCharge: () => void; onDetail: () => void;
+}) {
+  const [summary, setSummary] = useState<CardSummary | null>(null)
+
+  useEffect(() => {
+    fetchCardSummary(loan.id).then(setSummary).catch(() => {})
+  }, [loan.id])
+
+  const limit = loan.credit_limit ?? 0
+  const debt = summary?.total_debt ?? loan.remaining_amount ?? 0
+  const available = summary?.available ?? (limit - debt)
+  const usedPct = limit > 0 ? debt / limit : 0
+  const hasOverdue = summary?.grace_buckets.some(b => b.is_overdue) ?? false
+
+  return (
+    <div style={{ border: `1px solid ${hasOverdue ? 'rgba(244,67,54,0.4)' : 'rgba(128,128,128,0.2)'}`, borderRadius: 10, padding: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <span style={{ fontWeight: 'bold' }}>🃏 {loan.name}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ fontSize: 12, opacity: 0.6 }}>{loan.bank || ''}</span>
+          <CardMenu onEdit={onEdit} onDelete={onDelete} />
+        </div>
+      </div>
+
+      {hasOverdue && (
+        <div style={{ fontSize: 12, color: '#F44336', marginBottom: 6 }}>⚠️ Есть просроченные траты · {loan.interest_rate}% годовых</div>
+      )}
+
+      <div style={{ fontSize: 13, marginBottom: 6 }}>
+        Долг: <b>₽{debt.toLocaleString('ru')}</b> · Доступно: ₽{available.toLocaleString('ru')} / ₽{limit.toLocaleString('ru')}
+      </div>
+
+      <div style={{ background: 'rgba(128,128,128,0.2)', borderRadius: 4, height: 6, marginBottom: 6 }}>
+        <div style={{ background: hasOverdue ? '#F44336' : '#FF9800', width: `${Math.min(usedPct * 100, 100)}%`, height: 6, borderRadius: 4 }} />
+      </div>
+
+      {/* Grace buckets */}
+      {summary && summary.grace_buckets.length > 0 && (
+        <div style={{ marginBottom: 8 }}>
+          {summary.grace_buckets.map((b, i) => (
+            <div key={i} style={{
+              fontSize: 11, padding: '3px 0',
+              color: b.is_overdue ? '#F44336' : '#4CAF50',
+            }}>
+              {b.is_overdue ? '⚠️' : '✓'} до {b.deadline}: ₽{b.total.toLocaleString('ru')}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {summary && summary.non_grace_debt > 0 && (
+        <div style={{ fontSize: 11, color: '#FF9800', marginBottom: 6 }}>
+          Без льготы: ₽{summary.non_grace_debt.toLocaleString('ru')} · %: ₽{summary.accrued_interest.toLocaleString('ru')}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, opacity: 0.6, marginBottom: 8 }}>
+        <span>Мин. платёж: ₽{(summary?.min_payment ?? loan.monthly_payment).toLocaleString('ru')}</span>
+        <span>До: {loan.next_payment_date}</span>
+      </div>
+
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button onClick={onPayment} style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#E8F5E9', color: '#388E3C', fontSize: 12 }}>
+          ✓ Платёж
+        </button>
+        <button onClick={onAddCharge} style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: 'rgba(33,150,243,0.12)', color: '#2196F3', fontSize: 12 }}>
+          + Трата
+        </button>
+        <button onClick={onDetail} style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: 'rgba(128,128,128,0.1)', color: 'inherit', fontSize: 12, marginLeft: 'auto' }}>
+          Подробнее →
+        </button>
       </div>
     </div>
   )
+}
 
-  if (loan.loan_type === 'card') {
-    const limit = loan.credit_limit ?? 0
-    const debt = loan.remaining_amount ?? 0
-    const available = limit - debt
-    const usedPct = limit > 0 ? debt / limit : 0
-    const isOverdue = (loan.grace_days ?? 0) === 0 && debt > 0
-
-    return (
-      <div style={{ border: `1px solid ${isOverdue ? 'rgba(244,67,54,0.4)' : 'rgba(128,128,128,0.2)'}`, borderRadius: 10, padding: 12 }}>
-        {menuHeader('🃏')}
-        {isOverdue && (
-          <div style={{ fontSize: 12, color: '#F44336', marginBottom: 6 }}>⚠️ Льготный период истёк · {loan.interest_rate}% годовых</div>
-        )}
-        <div style={{ fontSize: 13, marginBottom: 6 }}>
-          Долг: <b>₽{debt.toLocaleString('ru')}</b> · Доступно: ₽{available.toLocaleString('ru')} / ₽{limit.toLocaleString('ru')}
-        </div>
-        <div style={{ background: 'rgba(128,128,128,0.2)', borderRadius: 4, height: 6, marginBottom: 6 }}>
-          <div style={{ background: isOverdue ? '#F44336' : '#FF9800', width: `${Math.min(usedPct * 100, 100)}%`, height: 6, borderRadius: 4 }} />
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, opacity: 0.6, marginBottom: 8 }}>
-          <span>Мин. платёж: ₽{(loan.min_payment ?? loan.monthly_payment).toLocaleString('ru')}</span>
-          <span>До: {loan.next_payment_date}</span>
-        </div>
-        <button onClick={onPayment} style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#E8F5E9', color: '#388E3C', fontSize: 12 }}>
-          ✓ Записать платёж
-        </button>
-      </div>
-    )
-  }
-
-  // Regular loan
+function RegularLoanCard({ loan, onPayment, onEdit, onDelete }: { loan: Loan; onPayment: () => void; onEdit: () => void; onDelete: () => void }) {
   const orig = loan.original_amount ?? loan.remaining_amount
   const pct = orig > 0 ? 1 - loan.remaining_amount / orig : 0
   const monthlyRate = parseFloat(String(loan.interest_rate)) / 100 / 12
@@ -274,7 +375,13 @@ function LoanCard({ loan, onPayment, onEdit, onDelete }: { loan: Loan; onPayment
 
   return (
     <div style={{ border: '1px solid rgba(128,128,128,0.2)', borderRadius: 10, padding: 12 }}>
-      {menuHeader('💳')}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <span style={{ fontWeight: 'bold' }}>💳 {loan.name}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ fontSize: 12, opacity: 0.6 }}>{loan.bank || ''}</span>
+          <CardMenu onEdit={onEdit} onDelete={onDelete} />
+        </div>
+      </div>
       <div style={{ fontSize: 13, marginBottom: 6 }}>
         Остаток: <b>₽{loan.remaining_amount.toLocaleString('ru')}</b> · {loan.interest_rate}% · ещё ~{monthsLeft} мес.
       </div>
@@ -297,13 +404,13 @@ export default function LoansPage() {
   const [showModal, setShowModal] = useState(false)
   const [editingLoan, setEditingLoan] = useState<Loan | undefined>()
   const [deletingLoan, setDeletingLoan] = useState<Loan | undefined>()
+  const [chargingLoanId, setChargingLoanId] = useState<number | null>(null)
+  const [detailLoan, setDetailLoan] = useState<Loan | null>(null)
   const load = () => fetchLoans().then(setLoans)
   useEffect(() => { load() }, [])
 
   const handlePayment = async (loan: Loan) => {
-    const defaultAmt = loan.loan_type === 'card'
-      ? (loan.min_payment ?? loan.monthly_payment)
-      : loan.monthly_payment
+    const defaultAmt = loan.monthly_payment
     const amount = prompt(`Платёж по "${loan.name}" (мин. ₽${defaultAmt}):`)
     if (!amount) return
     await recordPayment(loan.id, parseFloat(amount))
@@ -320,6 +427,11 @@ export default function LoansPage() {
     await deleteLoan(deletingLoan.id)
     setDeletingLoan(undefined)
     load()
+  }
+
+  // Show CardDetail page
+  if (detailLoan) {
+    return <CardDetail loan={detailLoan} onBack={() => { setDetailLoan(null); load() }} />
   }
 
   const regularLoans = loans.filter(l => l.loan_type === 'loan')
@@ -339,10 +451,12 @@ export default function LoansPage() {
           <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 8 }}>КРЕДИТНЫЕ КАРТЫ</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
             {cards.map(loan => (
-              <LoanCard key={loan.id} loan={loan}
+              <CardLoanCard key={loan.id} loan={loan}
                 onPayment={() => handlePayment(loan)}
                 onEdit={() => handleEdit(loan)}
                 onDelete={() => setDeletingLoan(loan)}
+                onAddCharge={() => setChargingLoanId(loan.id)}
+                onDetail={() => setDetailLoan(loan)}
               />
             ))}
           </div>
@@ -354,7 +468,7 @@ export default function LoansPage() {
           <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 8 }}>КРЕДИТЫ</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
             {regularLoans.map(loan => (
-              <LoanCard key={loan.id} loan={loan}
+              <RegularLoanCard key={loan.id} loan={loan}
                 onPayment={() => handlePayment(loan)}
                 onEdit={() => handleEdit(loan)}
                 onDelete={() => setDeletingLoan(loan)}
@@ -383,6 +497,14 @@ export default function LoansPage() {
           loan={deletingLoan}
           onClose={() => setDeletingLoan(undefined)}
           onConfirm={handleDelete}
+        />
+      )}
+
+      {chargingLoanId !== null && (
+        <AddChargeModal
+          loanId={chargingLoanId}
+          onClose={() => setChargingLoanId(null)}
+          onSave={load}
         />
       )}
     </div>
