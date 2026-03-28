@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { fetchLoans, Loan, RatePeriod, recordPayment, createLoan, updateLoan, deleteLoan } from '../api/loans'
+import { fetchLoans, Loan, RatePeriod, recordPayment, createLoan, updateLoan, deleteLoan, fetchSmartDistribute, SmartDistributeResponse } from '../api/loans'
 import { CardSummary, fetchCardSummary, addCharge } from '../api/card'
 import ExtraPaymentSlider from '../components/ExtraPaymentSlider'
 import CardDetail from './CardDetail'
@@ -461,6 +461,88 @@ function RegularLoanCard({ loan, onPayment, onEdit, onDelete, onOpenDetail }: { 
   )
 }
 
+function SmartDistribute() {
+  const [amount, setAmount] = useState('')
+  const [result, setResult] = useState<SmartDistributeResponse | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  const handleCalculate = async () => {
+    const val = parseFloat(amount)
+    if (!val || val <= 0) return
+    setLoading(true)
+    try {
+      const data = await fetchSmartDistribute(val)
+      setResult(data)
+    } catch { setResult(null) }
+    setLoading(false)
+  }
+
+  const fmt = (n: number) => n.toLocaleString('ru-RU', { maximumFractionDigits: 2 })
+
+  return (
+    <div style={{ background: 'linear-gradient(135deg, rgba(33,150,243,0.1), rgba(76,175,80,0.1))', borderRadius: 12, padding: 14, marginBottom: 16 }}>
+      <div style={{ fontWeight: 'bold', fontSize: 14, marginBottom: 10 }}>🧠 Куда закинуть свободные деньги?</div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input
+          style={{ ...inputStyle, flex: 1, marginBottom: 0 }}
+          type="number"
+          placeholder="Сумма ₽"
+          value={amount}
+          onChange={e => setAmount(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleCalculate()}
+        />
+        <button
+          onClick={handleCalculate}
+          disabled={loading || !amount}
+          style={{ padding: '10px 16px', borderRadius: 8, border: 'none', background: '#2196F3', color: '#fff', fontSize: 13, fontWeight: 'bold', whiteSpace: 'nowrap' }}
+        >
+          {loading ? '...' : 'Рассчитать'}
+        </button>
+      </div>
+
+      {result && result.allocations.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontSize: 12, opacity: 0.6, marginBottom: 8 }}>РЕКОМЕНДАЦИЯ:</div>
+          {result.allocations.map((a, i) => (
+            <div key={a.loan_id} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '8px 10px', marginBottom: 4,
+              background: 'rgba(128,128,128,0.08)', borderRadius: 8,
+            }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 'bold' }}>
+                  {i + 1}. {a.loan_name}
+                </div>
+                <div style={{ fontSize: 11, opacity: 0.6 }}>
+                  {a.bank} · {a.rate}%{a.label ? ` · ${a.label}` : ''}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 14, fontWeight: 'bold', color: '#2196F3' }}>₽{fmt(a.amount)}</div>
+                {a.savings > 0 && (
+                  <div style={{ fontSize: 10, color: '#4CAF50' }}>−₽{fmt(a.savings)} переплаты</div>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {result.total_savings > 0 && (
+            <div style={{ textAlign: 'center', marginTop: 8, fontSize: 13 }}>
+              Общая экономия: <b style={{ color: '#4CAF50' }}>₽{fmt(result.total_savings)}</b>
+            </div>
+          )}
+
+          {result.unallocated > 0 && (
+            <div style={{ textAlign: 'center', marginTop: 4, fontSize: 11, opacity: 0.5 }}>
+              Остаток без распределения: ₽{fmt(result.unallocated)}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function LoansPage() {
   const [loans, setLoans] = useState<Loan[]>([])
   const [showModal, setShowModal] = useState(false)
@@ -510,6 +592,8 @@ export default function LoansPage() {
           + Добавить
         </button>
       </div>
+
+      {loans.length > 0 && <SmartDistribute />}
 
       {cards.length > 0 && (
         <>

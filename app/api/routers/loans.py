@@ -27,7 +27,125 @@ def get_rate_for_date(loan: Loan, d: date_type) -> float:
     return float(loan.interest_rate)
 
 
-# IMPORTANT: /payoff MUST be declared before /{loan_id} to avoid route collision
+# IMPORTANT: static routes MUST be declared before /{loan_id} to avoid route collision
+
+
+@router.get("/smart-distribute")
+async def smart_distribute(
+    amount: float,
+    db: AsyncSession = Depends(get_db),
+    _u: dict = Depends(get_tg_user),
+):
+    """Distribute free money across loans for maximum savings (avalanche + grace priority)."""
+    result = await db.execute(select(Loan).where(Loan.is_active == True))
+    loans = result.scalars().all()
+    if not loans:
+        raise HTTPException(404, "No active loans")
+
+    today = date_type.today()
+    remaining = amount
+    allocations: list[dict] = []
+
+    # Build priority list: each entry = (effective_rate, urgency_bonus, loan, label)
+    targets: list[tuple[float, int, Loan, str]] = []
+
+    for loan in loans:
+        if float(loan.remaining_amount) <= 0:
+            continue
+
+        if loan.loan_type == "card":
+            # Card: check grace deadlines — urgent ones get priority
+            charges_result = await db.execute(
+                select(CardCharge).where(
+                    CardCharge.loan_id == loan.id, CardCharge.is_paid == False
+                )
+            )
+            charges = charges_result.scalars().all()
+
+            grace_urgent = Decimal("0")
+            grace_deadline_str = ""
+            for c in charges:
+                if c.grace_deadline and c.grace_deadline <= today + relativedelta(days=30):
+                    grace_urgent += c.amount
+                    if not grace_deadline_str or str(c.grace_deadline) < grace_deadline_str:
+                        grace_deadline_str = str(c.grace_deadline)
+
+            if grace_urgent > 0:
+                # Grace about to expire — highest priority (urgency_bonus=1000)
+                targets.append((
+                    float(loan.interest_rate) + 1000,
+                    1,
+                    loan,
+                    f"грейс до {grace_deadline_str}",
+                ))
+            else:
+                targets.append((float(loan.interest_rate), 0, loan, ""))
+        else:
+            # Regular loan: use current rate
+            current_rate = get_rate_for_date(loan, today)
+            targets.append((current_rate, 0, loan, ""))
+
+    # Sort by effective rate descending (highest rate first = avalanche)
+    targets.sort(key=lambda t: t[0], reverse=True)
+
+    # Simulate: what would happen without extra payments vs with
+    def simulate_total_interest(loan: Loan, extra: float) -> float:
+        bal = float(loan.remaining_amount)
+        pmt = float(loan.monthly_payment)
+        has_vr = len(loan.rate_periods) > 0
+        next_d = loan.next_payment_date
+        total_int = 0.0
+        m = 0
+        while bal > 0.01 and m < 600:
+            pd = next_d + relativedelta(months=m)
+            r = (get_rate_for_date(loan, pd) if has_vr else float(loan.interest_rate)) / 100 / 12
+            interest = bal * r
+            payment = pmt + (extra if m == 0 else 0)  # extra only in first month
+            actual = min(payment, bal + interest)
+            bal = bal + interest - actual
+            total_int += interest
+            m += 1
+        return total_int
+
+    total_savings = 0.0
+
+    for eff_rate, urgency, loan, label in targets:
+        if remaining <= 0:
+            break
+
+        debt = float(loan.remaining_amount)
+        # For cards, allocate up to debt; for loans, allocate what makes sense
+        alloc = min(remaining, debt)
+        if alloc <= 0:
+            continue
+
+        # Calculate savings from this allocation
+        interest_without = simulate_total_interest(loan, 0)
+        interest_with = simulate_total_interest(loan, alloc)
+        saved = interest_without - interest_with
+
+        current_rate = get_rate_for_date(loan, today) if loan.loan_type == "loan" else float(loan.interest_rate)
+
+        allocations.append({
+            "loan_id": loan.id,
+            "loan_name": loan.name,
+            "bank": loan.bank,
+            "loan_type": loan.loan_type,
+            "rate": current_rate,
+            "label": label,
+            "amount": round(alloc, 2),
+            "savings": round(saved, 2),
+        })
+
+        total_savings += saved
+        remaining -= alloc
+
+    return {
+        "total_amount": amount,
+        "unallocated": round(max(remaining, 0), 2),
+        "total_savings": round(total_savings, 2),
+        "allocations": allocations,
+    }
 
 
 @router.get("/payoff", response_model=PayoffResponse)

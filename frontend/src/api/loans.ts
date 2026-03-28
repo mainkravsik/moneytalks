@@ -55,6 +55,27 @@ export const fetchSchedule = (id: number) =>
     total_months: number; total_interest: number; total_paid: number
   }>(`/loans/${id}/schedule`).then(r => r.data)
 
+export interface SmartAllocation {
+  loan_id: number
+  loan_name: string
+  bank: string | null
+  loan_type: string
+  rate: number
+  label: string
+  amount: number
+  savings: number
+}
+
+export interface SmartDistributeResponse {
+  total_amount: number
+  unallocated: number
+  total_savings: number
+  allocations: SmartAllocation[]
+}
+
+export const fetchSmartDistribute = (amount: number) =>
+  api.get<SmartDistributeResponse>(`/loans/smart-distribute?amount=${amount}`).then(r => r.data)
+
 export const fetchEarlyPayoff = (id: number, extra: number) =>
   api.get<{
     normal: {months: number; total_interest: number; total_paid: number}
