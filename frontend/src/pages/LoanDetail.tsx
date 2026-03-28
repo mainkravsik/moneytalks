@@ -51,8 +51,15 @@ export default function LoanDetail({ loan, onBack }: { loan: Loan; onBack: () =>
       <div style={{ background: 'rgba(128,128,128,0.1)', borderRadius: 10, padding: 12, marginBottom: 16 }}>
         <div style={{ fontSize: 14 }}>Остаток: <b>₽{fmt(loan.remaining_amount)}</b></div>
         <div style={{ fontSize: 13, opacity: 0.7 }}>
-          {loan.bank} · {loan.interest_rate}% · ₽{fmt(loan.monthly_payment)}/мес
+          {loan.bank} · {loan.rate_periods?.length > 0 ? 'перем. ставка' : `${loan.interest_rate}%`} · ₽{fmt(loan.monthly_payment)}/мес
         </div>
+        {loan.rate_periods?.length > 0 && (
+          <div style={{ fontSize: 12, opacity: 0.6, marginTop: 4 }}>
+            {loan.rate_periods.map((rp, i) => (
+              <span key={i}>{i > 0 ? ' → ' : ''}{rp.rate}%{rp.end_date ? ` (до ${rp.end_date})` : ''}</span>
+            ))}
+          </div>
+        )}
         <div style={{ fontSize: 12, opacity: 0.5 }}>
           Следующий платёж: {loan.next_payment_date}
         </div>

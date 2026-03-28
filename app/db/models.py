@@ -4,7 +4,7 @@ from sqlalchemy import (
     Integer, String, Boolean, Numeric, Date, DateTime,
     ForeignKey, Text, func, UniqueConstraint
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 
@@ -87,7 +87,7 @@ class Loan(Base):
     # Loan fields
     original_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     remaining_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
-    interest_rate: Mapped[Decimal] = mapped_column(Numeric(5, 2))  # % годовых
+    interest_rate: Mapped[Decimal] = mapped_column(Numeric(7, 3))  # % годовых
     monthly_payment: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     next_payment_date: Mapped[date] = mapped_column(Date)
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -99,6 +99,7 @@ class Loan(Base):
     min_payment_floor: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True, default=Decimal("150"))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    rate_periods: Mapped[list["LoanRatePeriod"]] = relationship("LoanRatePeriod", lazy="selectin", cascade="all, delete-orphan")
 
 
 class LoanPayment(Base):
@@ -108,6 +109,15 @@ class LoanPayment(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     paid_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class LoanRatePeriod(Base):
+    __tablename__ = "loan_rate_periods"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    loan_id: Mapped[int] = mapped_column(ForeignKey("loans.id"))
+    rate: Mapped[Decimal] = mapped_column(Numeric(7, 3))  # % годовых
+    start_date: Mapped[date] = mapped_column(Date)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)  # NULL = бессрочно
 
 
 class CardCharge(Base):

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { fetchLoans, Loan, recordPayment, createLoan, updateLoan, deleteLoan } from '../api/loans'
+import { fetchLoans, Loan, RatePeriod, recordPayment, createLoan, updateLoan, deleteLoan } from '../api/loans'
 import { CardSummary, fetchCardSummary, addCharge } from '../api/card'
 import ExtraPaymentSlider from '../components/ExtraPaymentSlider'
 import CardDetail from './CardDetail'
@@ -62,9 +62,31 @@ function LoanModal({ onClose, onSave, editLoan }: { onClose: () => void; onSave:
   const [minPaymentFloor, setMinPaymentFloor] = useState(editLoan?.min_payment_floor?.toString() ?? '')
   const [cardNextDate, setCardNextDate] = useState(editLoan?.next_payment_date ?? '')
   const [saving, setSaving] = useState(false)
+  // Variable rate periods
+  const [hasVariableRate, setHasVariableRate] = useState((editLoan?.rate_periods?.length ?? 0) > 0)
+  const [ratePeriods, setRatePeriods] = useState<{ rate: string; start_date: string; end_date: string }[]>(
+    editLoan?.rate_periods?.map(rp => ({
+      rate: rp.rate.toString(),
+      start_date: rp.start_date,
+      end_date: rp.end_date ?? '',
+    })) ?? [{ rate: '', start_date: '', end_date: '' }, { rate: '', start_date: '', end_date: '' }]
+  )
+
+  const addRatePeriod = () => setRatePeriods([...ratePeriods, { rate: '', start_date: '', end_date: '' }])
+  const removeRatePeriod = (i: number) => setRatePeriods(ratePeriods.filter((_, idx) => idx !== i))
+  const updateRatePeriod = (i: number, field: string, val: string) => {
+    const updated = [...ratePeriods]
+    updated[i] = { ...updated[i], [field]: val }
+    setRatePeriods(updated)
+  }
 
   const handleSave = async () => {
     setSaving(true)
+    const rp = hasVariableRate
+      ? ratePeriods
+          .filter(p => p.rate && p.start_date)
+          .map(p => ({ rate: parseFloat(p.rate), start_date: p.start_date, end_date: p.end_date || null }))
+      : undefined
     if (type === 'loan') {
       const data: any = {
         name: name.trim(),
@@ -73,6 +95,7 @@ function LoanModal({ onClose, onSave, editLoan }: { onClose: () => void; onSave:
         interest_rate: parseFloat(rate),
         monthly_payment: parseFloat(payment),
         next_payment_date: nextDate,
+        rate_periods: rp ?? (isEdit ? [] : undefined),
       }
       if (isEdit) {
         await updateLoan(editLoan!.id, data)
@@ -145,6 +168,30 @@ function LoanModal({ onClose, onSave, editLoan }: { onClose: () => void; onSave:
             )}
             <input style={inputStyle} type="number" placeholder="Остаток долга *" value={remaining} onChange={e => setRemaining(e.target.value)} />
             <input style={inputStyle} type="number" placeholder="Ставка % годовых *" value={rate} onChange={e => setRate(e.target.value)} />
+
+            {/* Variable rate toggle */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: 13 }}>
+              <input type="checkbox" checked={hasVariableRate} onChange={e => setHasVariableRate(e.target.checked)} />
+              Переменная ставка
+            </label>
+
+            {hasVariableRate && (
+              <div style={{ background: 'rgba(128,128,128,0.08)', borderRadius: 8, padding: 10, marginBottom: 10 }}>
+                <div style={{ fontSize: 12, opacity: 0.6, marginBottom: 8 }}>Периоды ставок:</div>
+                {ratePeriods.map((rp, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 6 }}>
+                    <input style={{ ...inputStyle, flex: 1, marginBottom: 0 }} type="number" placeholder="Ставка %" value={rp.rate} onChange={e => updateRatePeriod(i, 'rate', e.target.value)} />
+                    <input style={{ ...inputStyle, flex: 1, marginBottom: 0 }} type="date" value={rp.start_date} onChange={e => updateRatePeriod(i, 'start_date', e.target.value)} />
+                    <input style={{ ...inputStyle, flex: 1, marginBottom: 0 }} type="date" placeholder="до" value={rp.end_date} onChange={e => updateRatePeriod(i, 'end_date', e.target.value)} />
+                    {ratePeriods.length > 1 && (
+                      <button onClick={() => removeRatePeriod(i)} style={{ background: 'none', border: 'none', color: '#F44336', fontSize: 16, cursor: 'pointer', padding: '0 4px' }}>×</button>
+                    )}
+                  </div>
+                ))}
+                <button onClick={addRatePeriod} style={{ background: 'none', border: 'none', color: '#2196F3', fontSize: 12, cursor: 'pointer', padding: 0 }}>+ Добавить период</button>
+              </div>
+            )}
+
             <input style={inputStyle} type="number" placeholder="Ежемесячный платёж *" value={payment} onChange={e => setPayment(e.target.value)} />
             <div style={labelStyle}>Дата следующего платежа *</div>
             <input style={inputStyle} type="date" value={nextDate} onChange={e => setNextDate(e.target.value)} />
@@ -384,8 +431,17 @@ function RegularLoanCard({ loan, onPayment, onEdit, onDelete, onOpenDetail }: { 
         </div>
       </div>
       <div style={{ fontSize: 13, marginBottom: 6 }}>
-        Остаток: <b>₽{loan.remaining_amount.toLocaleString('ru')}</b> · {loan.interest_rate}% · ещё ~{monthsLeft} мес.
+        Остаток: <b>₽{loan.remaining_amount.toLocaleString('ru')}</b> · {loan.rate_periods?.length > 0 ? (
+          <span title="Переменная ставка">📊 перем.</span>
+        ) : <>{loan.interest_rate}%</>} · ещё ~{monthsLeft} мес.
       </div>
+      {loan.rate_periods?.length > 0 && (
+        <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 4 }}>
+          {loan.rate_periods.map((rp, i) => (
+            <span key={i}>{i > 0 ? ' → ' : ''}{rp.rate}%{rp.end_date ? ` до ${rp.end_date}` : ''}</span>
+          ))}
+        </div>
+      )}
       <div style={{ background: 'rgba(128,128,128,0.2)', borderRadius: 4, height: 6, marginBottom: 6 }}>
         <div style={{ background: '#4CAF50', width: `${Math.min(pct * 100, 100)}%`, height: 6, borderRadius: 4 }} />
       </div>

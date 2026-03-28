@@ -3,6 +3,22 @@ from decimal import Decimal
 from pydantic import BaseModel, Field
 
 
+class RatePeriodIn(BaseModel):
+    rate: Decimal
+    start_date: date
+    end_date: date | None = None
+
+
+class RatePeriodOut(BaseModel):
+    id: int
+    loan_id: int
+    rate: Decimal
+    start_date: date
+    end_date: date | None
+
+    model_config = {"from_attributes": True}
+
+
 class LoanCreate(BaseModel):
     loan_type: str = "loan"  # loan | card
     name: str
@@ -20,6 +36,8 @@ class LoanCreate(BaseModel):
     grace_period_months: int | None = 3
     min_payment_pct: Decimal | None = Decimal("0.03")
     min_payment_floor: Decimal | None = Decimal("150")
+    # variable rate periods (optional)
+    rate_periods: list[RatePeriodIn] | None = None
 
 
 class LoanUpdate(BaseModel):
@@ -33,6 +51,7 @@ class LoanUpdate(BaseModel):
     min_payment_pct: Decimal | None = None
     min_payment_floor: Decimal | None = None
     remaining_amount: Decimal | None = None
+    rate_periods: list[RatePeriodIn] | None = None
 
 
 class LoanPaymentBody(BaseModel):
@@ -56,6 +75,7 @@ class LoanOut(BaseModel):
     grace_period_months: int | None
     min_payment_pct: Decimal | None
     min_payment_floor: Decimal | None
+    rate_periods: list[RatePeriodOut] = []
 
     model_config = {"from_attributes": True}
 

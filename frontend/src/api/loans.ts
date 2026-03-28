@@ -1,5 +1,13 @@
 import { api } from './client'
 
+export interface RatePeriod {
+  id?: number
+  loan_id?: number
+  rate: number
+  start_date: string
+  end_date: string | null
+}
+
 export interface Loan {
   id: number
   loan_type: 'loan' | 'card'
@@ -16,6 +24,7 @@ export interface Loan {
   grace_period_months: number | null
   min_payment_pct: number | null
   min_payment_floor: number | null
+  rate_periods: RatePeriod[]
 }
 
 export interface StrategyResult {

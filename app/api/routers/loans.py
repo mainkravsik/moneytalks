@@ -6,17 +6,26 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.auth import get_tg_user
 from app.api.deps import get_or_create_user
-from app.api.schemas.loan import LoanCreate, LoanUpdate, LoanOut, LoanPaymentBody, PayoffResponse, StrategyResult
+from app.api.schemas.loan import LoanCreate, LoanUpdate, LoanOut, LoanPaymentBody, PayoffResponse, StrategyResult, RatePeriodOut
 from app.api.schemas.card_charge import (
     CardChargeCreate, CardChargeOut, CardSummary, GraceBucket,
     CardPayoffMonth, CardPayoffResponse,
 )
 from app.db.base import get_db
-from app.db.models import Loan, LoanPayment, CardCharge
+from app.db.models import Loan, LoanPayment, CardCharge, LoanRatePeriod
 from app.services.payoff import LoanInput, calculate_payoff
 from app.services.card import compute_grace_deadline, compute_min_payment, compute_monthly_interest
 
 router = APIRouter(prefix="/loans", tags=["loans"])
+
+
+def get_rate_for_date(loan: Loan, d: date_type) -> float:
+    """Get interest rate for a specific date, considering variable rate periods."""
+    for rp in loan.rate_periods:
+        if rp.start_date <= d and (rp.end_date is None or d <= rp.end_date):
+            return float(rp.rate)
+    return float(loan.interest_rate)
+
 
 # IMPORTANT: /payoff MUST be declared before /{loan_id} to avoid route collision
 
@@ -76,7 +85,10 @@ async def list_loans(db: AsyncSession = Depends(get_db), _u: dict = Depends(get_
 
 @router.post("", response_model=LoanOut, status_code=201)
 async def create_loan(body: LoanCreate, db: AsyncSession = Depends(get_db), _u: dict = Depends(get_tg_user)):
-    loan = Loan(**body.model_dump())
+    data = body.model_dump(exclude={"rate_periods"})
+    loan = Loan(**data)
+    if body.rate_periods:
+        loan.rate_periods = [LoanRatePeriod(**rp.model_dump()) for rp in body.rate_periods]
     db.add(loan)
     await db.commit()
     await db.refresh(loan)
@@ -89,8 +101,12 @@ async def update_loan(loan_id: int, body: LoanUpdate, db: AsyncSession = Depends
     loan = result.scalar_one_or_none()
     if not loan:
         raise HTTPException(404, "Loan not found")
-    for field_name, val in body.model_dump(exclude_none=True).items():
+    for field_name, val in body.model_dump(exclude_none=True, exclude={"rate_periods"}).items():
         setattr(loan, field_name, val)
+    if body.rate_periods is not None:
+        loan.rate_periods.clear()
+        for rp in body.rate_periods:
+            loan.rate_periods.append(LoanRatePeriod(**rp.model_dump()))
     await db.commit()
     await db.refresh(loan)
     return loan
@@ -175,15 +191,20 @@ async def get_loan_schedule(
         raise HTTPException(404, "Loan not found")
 
     balance = float(loan.remaining_amount)
-    rate = float(loan.interest_rate) / 100 / 12
     pmt = float(loan.monthly_payment)
     next_date = loan.next_payment_date
+    has_variable_rate = len(loan.rate_periods) > 0
 
     schedule = []
     total_interest = 0.0
     month = 0
 
     while balance > 0.01 and month < 600:
+        payment_date = next_date + relativedelta(months=month)
+        if has_variable_rate:
+            rate = get_rate_for_date(loan, payment_date) / 100 / 12
+        else:
+            rate = float(loan.interest_rate) / 100 / 12
         interest = balance * rate
         principal = min(pmt - interest, balance)
         if principal <= 0:
@@ -195,7 +216,7 @@ async def get_loan_schedule(
 
         schedule.append({
             "month": month,
-            "date": str(next_date + relativedelta(months=month - 1)),
+            "date": str(payment_date),
             "payment": round(actual_payment, 2),
             "principal": round(principal, 2),
             "interest": round(interest, 2),
@@ -223,8 +244,9 @@ async def get_early_payoff(
         raise HTTPException(404, "Loan not found")
 
     balance = float(loan.remaining_amount)
-    rate = float(loan.interest_rate) / 100 / 12
     pmt = float(loan.monthly_payment)
+    has_variable_rate = len(loan.rate_periods) > 0
+    next_date = loan.next_payment_date
 
     def simulate(monthly: float):
         bal = balance
@@ -232,6 +254,11 @@ async def get_early_payoff(
         total_pd = 0.0
         m = 0
         while bal > 0.01 and m < 600:
+            if has_variable_rate:
+                payment_date = next_date + relativedelta(months=m)
+                rate = get_rate_for_date(loan, payment_date) / 100 / 12
+            else:
+                rate = float(loan.interest_rate) / 100 / 12
             interest = bal * rate
             actual = min(monthly, bal + interest)
             bal = bal + interest - actual
@@ -260,6 +287,22 @@ async def get_early_payoff(
             "interest_saved": round(interest_normal - interest_extra, 2),
         },
     }
+
+
+# --- Rate Period Endpoints ---
+
+
+@router.get("/{loan_id}/rate-periods", response_model=list[RatePeriodOut])
+async def get_rate_periods(
+    loan_id: int,
+    db: AsyncSession = Depends(get_db),
+    _u: dict = Depends(get_tg_user),
+):
+    result = await db.execute(select(Loan).where(Loan.id == loan_id))
+    loan = result.scalar_one_or_none()
+    if not loan:
+        raise HTTPException(404, "Loan not found")
+    return loan.rate_periods
 
 
 # --- Card Charge Endpoints ---
